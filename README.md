@@ -5,9 +5,9 @@ This is an **under construction** lisp1-dialect which is intended to be used on 
 Forked from [FemtoLisp](https://github.com/JeffBezanson/femtolisp) and [ECL](https://gitlab.com/embeddable-common-lisp/ecl).
 
 
-# done
-- C++ function, lambda and c functions auto type conversion.
-- Classes
+# Supported
+- lambda, label, set
+- fixnum, symbol, gensym(non-standard)
 
 # TODO:
 - [ ] complete primitive function
