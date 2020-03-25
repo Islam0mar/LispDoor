@@ -1,0 +1,124 @@
+cmake_minimum_required(VERSION 2.8.12)
+project(LISP_DOOR C ASM)
+
+# Dependencies
+# ============
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
+
+# Settings
+# ============
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+set(CMAKE_VERBOSE_MAKEFILE 1)
+
+# # Compilation flags
+# # =================
+# set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+
+# Liker flags
+# =================
+set(D_LINER_FLAGS  "-Wl,--no-undefined" "-Wl,--no-allow-shlib-undefined")
+
+
+# Configuration types
+# ====================
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Configs" FORCE)
+IF(DEFINED CMAKE_BUILD_TYPE AND CMAKE_VERSION VERSION_GREATER "2.8")
+  SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS  ${CMAKE_CONFIGURATION_TYPES})
+ELSE()
+  SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS  "Release")
+ENDIF()
+
+# Source files
+# ============
+set(LISP_DOOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(LISP_DOOR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+file(GLOB HEADER_GLOB
+  ${LISP_DOOR_INCLUDE_DIR}/lispdoor/*.h
+  ${LISP_DOOR_INCLUDE_DIR}/hw/*.h
+  )
+
+file(GLOB SOURCES_GLOB
+  ${LISP_DOOR_SOURCE_DIR}/*.c
+  )
+
+set(LISP_DOOR_HEADERS
+  ${HEADER_GLOB}
+  )
+
+set(LISP_DOOR_SOURCES
+  ${SOURCES_GLOB}
+  )
+
+# Versioning
+# ==========
+
+file(STRINGS "${LISP_DOOR_INCLUDE_DIR}/lispdoor_config.h" LISP_DOOR_version_defines
+  REGEX "#define LISP_DOOR_VERSION_(MAJOR|MINOR|PATCH)")
+foreach(ver ${LISP_DOOR_version_defines})
+  if(ver MATCHES "#define LISP_DOOR_VERSION_(MAJOR|MINOR|PATCH) +([^ ]+)$")
+    set(LISP_DOOR_VERSION_${CMAKE_MATCH_1} "${CMAKE_MATCH_2}" CACHE INTERNAL "")
+  endif()
+endforeach()
+set(${PROJECT_NAME}_VERSION
+  ${LISP_DOOR_VERSION_MAJOR}.${LISP_DOOR_VERSION_MINOR}.${LISP_DOOR_VERSION_PATCH})
+message(STATUS "${PROJECT_NAME} version: v${${PROJECT_NAME}_VERSION}")
+
+# Output
+# ======
+set(LISP_DOOR_TARGET "${PROJECT_NAME}")
+add_executable(${LISP_DOOR_TARGET} ${LISP_DOOR_SOURCES} ${LISP_DOOR_HEADERS})
+
+target_include_directories(${LISP_DOOR_TARGET} PUBLIC
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  $<BUILD_INTERFACE:${LISP_DOOR_INCLUDE_DIR}>
+  )
+
+target_compile_options(${LISP_DOOR_TARGET} PUBLIC "$<$<COMPILE_LANGUAGE:C>:-std=c99>"  "-Wall")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -O0") 
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_DEBUG} -Ofast") 
+
+target_link_libraries(${LISP_DOOR_TARGET}  ${D_LINER_FLAGS})
+set_target_properties(${LISP_DOOR_TARGET} PROPERTIES
+  DESTINATION  "${${PROJ_NAME}_PATH_INSTALL}/${CMAKE_BUILD_TYPE}/"
+    # ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    # LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    # RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+set_property(TARGET ${LISP_DOOR_TARGET} PROPERTY VERSION ${${PROJECT_NAME}_VERSION})
+set_property(TARGET ${LISP_DOOR_TARGET} PROPERTY SOVERSION ${LISP_DOOR_VERSION_MAJOR})
+set_property(TARGET ${LISP_DOOR_TARGET} PROPERTY
+  INTERFACE_${LISP_DOOR_TARGET}_MAJOR_VERSION ${LISP_DOOR_VERSION_MAJOR})
+set_property(TARGET ${LISP_DOOR_TARGET} APPEND PROPERTY
+  COMPATIBLE_INTERFACE_STRING ${LISP_DOOR_TARGET}_MAJOR_VERSION
+  )
+
+
+# Installation
+# ============
+
+# Use this snippet *after* PROJECT(xxx):
+IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  SET(CMAKE_INSTALL_PREFIX "~/.local" CACHE PATH "install directory" FORCE)
+ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+
+install(TARGETS ${LISP_DOOR_TARGET} EXPORT LispDoorTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Uninstall
+# ==========
+if(NOT TARGET uninstall)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
+
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+endif()
+
+
