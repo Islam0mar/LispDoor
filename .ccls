@@ -1,0 +1,6 @@
+clang
+%c -std=c99
+#%cpp -std=c++14
+#%h %hpp
+#%compile_commands.json
+-I/usr/lib/clang/9.0.1/include
