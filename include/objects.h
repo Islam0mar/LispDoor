@@ -79,7 +79,7 @@ const LispEnvPtr LispEnv();
 /* extern uint32_t __flash_end__; */
 /* FORTH_ASSERT(__ram_end__ == __flash_end__, "shit"); */
 #define LISP_NIL ((LispObject)kList)
-#define LISP_T ((LispObject)(kBuiltIn))
+#define LISP_T ((LispObject)(kForwarded))
 #define LISP_UNBOUND (OBJ_NULL)
 #define LISP_UNBOUNDP(x) (x == LISP_UNBOUND)
 #define LISP_NULL(x) ((x) == LISP_NIL)
@@ -87,8 +87,8 @@ const LispEnvPtr LispEnv();
 typedef enum {
   kStart = 0,
   kList = 1,
-  kBuiltIn =
-      2, /* immediate builtin flag used to correctly print builtin functions */
+  /* immediate forwarded flag used by GC */
+  kForwarded = 2,
   kFixNum = 3, /* immediate fixnum */
   kSingleFloat,
   kDoubleFloat,
@@ -97,7 +97,8 @@ typedef enum {
   kSymbol,
   kBitVector,
   kString,
-  kGenSym,
+  kCFunction, /* internal */
+  kGenSym,    /* internal only, no valid lisp object should have this type */
   kVector
 } LispType;
 
@@ -124,12 +125,6 @@ typedef enum {
 #define LISP_FIXNUM_MINUSP(a) ((LispFixNum)(a) < (LispFixNum)(0))
 #define LISP_FIXNUM(a) (((LispFixNum)(a)) >> 2)
 
-/* builtin value */
-#define LISP_BUILTIN_TAG kBuiltIn
-#define LISP_BuiltInP(o) (LISP_IMMEDIATE(o) == kBuiltIn)
-#define LISP_BUILTIN_TO_SYM(o) (LispObject)((intptr_t)(o)-kBuiltIn)
-#define LISP_SYM_TO_BUILTIN(o) (LispObject)((intptr_t)(o) + kBuiltIn)
-
 #define LISP_NumberP(t) (t >= kFixNum && t <= kLastNumber)
 #define LISP_RealP(t) (t >= kFixNum && t < kComplex)
 #define LISP_VectorP(x) ((LISP_IMMEDIATE(x) == 0) && (x)->d.t == kVector)
@@ -154,23 +149,15 @@ typedef enum {
 #define LISP_ConsP(x) (LISP_ListP(x) && !LISP_NULL(x))
 #define LISP_ATOM(x) (LISP_NULL(x) || !LISP_ListP(x))
 
-#define LISP_SYMBOL_TYPE_TAG (kSymBuiltIn - 1)
-#define LISP_SymbolP(x) (((LISP_IMMEDIATE(x) == 0) && ((x)->d.t == kSymbol)))
+#define LISP_SYMBOL_TYPE_TAG (kSymTag)
+#define LISP_SymbolP(x) ((LISP_IMMEDIATE(x) == 0) && ((x)->d.t == kSymbol))
 #define LISP_GenSymP(x) (((LISP_IMMEDIATE(x) == 0) && ((x)->d.t == kGenSym)))
-#define LISP_STRUCT_BUILTINP(sym) (sym->stype & kSymBuiltIn)
-#define LISP_SYMBOL_BUILTINP(sym) \
-  ((LISP_SymbolP(sym)) && (sym->symbol.stype & kSymBuiltIn))
-#define LISP_SYMBOL_SPECIALP(sym) \
-  ((LISP_SymbolP(sym)) &&         \
-   (sym->symbol.stype & LISP_SYMBOL_TYPE_TAG) == kSymSpecial)
-#define LISP_SYMBOL_ORDINARYP(sym) \
-  ((LISP_SymbolP(sym)) &&          \
-   (sym->symbol.stype & LISP_SYMBOL_TYPE_TAG) == kSymOrdinary)
-#define LISP_SYMBOL_CONSTANTP(sym) \
-  ((LISP_SymbolP(sym)) && (sym->symbol.stype & kSymConstant))
-#define LISP_SYMBOL_GENSYMP(sym) \
-  ((LISP_SymbolP(sym)) &&        \
-   (sym->symbol.stype & LISP_SYMBOL_TYPE_TAG) == kSymGenSym)
+#define LISP_SYMBOL_GENSYMP(sym) (sym->symbol.stype == kSymGenSym)
+#define LISP_SYMBOL_CONSTANTP(sym) (sym->symbol.stype == kSymConstant)
+
+#define LISP_CFunctionP(x) ((LISP_IMMEDIATE(x) == 0) && (x)->d.t == kCFunction)
+#define LISP_CFUNCTION_SPECIALP(x) \
+  (LISP_CFunctionP(x) && (x)->cfun.f_type == kFunctionSpecial)
 
 #define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) + kList)
 #define LISP_CONS_PTR(x) ((struct LispCons *)((intptr_t)(x)-kList))
@@ -180,19 +167,28 @@ typedef enum {
 #define LISP_RPLACA(x, v) (LISP_CONS_CAR(x) = (v))
 #define LISP_RPLACD(x, v) (LISP_CONS_CDR(x) = (v))
 
-#define LISP_SET_OBJ(s, v) (((LispObject)s)->symbol.value.obj = (v))
-#define LISP_SET_CONSTANT(s, v)              \
-  (((LispObject)s)->symbol.value.obj = (v)); \
-  (((LispObject)s)->symbol.stype |= (kSymConstant | kSymBuiltIn))
-#define LISP_SET_FUNC(s, v)                   \
-  (((LispObject)s)->symbol.value.func = (v)); \
-  (((LispObject)s)->symbol.stype |= kSymBuiltIn)
-#define LISP_SET_SPECIAL(s, v)                \
-  (((LispObject)s)->symbol.value.func = (v)); \
-  (((LispObject)s)->symbol.stype = (kSymSpecial | kSymBuiltIn))
-#define LISP_SET_SPECIAL_CONSTANT(s, v)       \
-  (((LispObject)s)->symbol.value.func = (v)); \
-  (((LispObject)s)->symbol.stype = (kSymConstant | kSymSpecial | kSymBuiltIn))
+#define LISP_SET_FUNCTION(f_name, f) \
+  o = LispMakeSymbol(f_name);        \
+  o->symbol.value = LispMakeCFunction(o->symbol.name, f)
+#define LISP_SET_CONSTANT_FUNCTION(f_name, f) \
+  o = LispMakeSymbol(f_name);                 \
+  o->symbol.stype = kSymConstant;             \
+  o->symbol.value = LispMakeCFunction(o->symbol.name, f)
+#define LISP_SET_VALUE(f_name, v) \
+  o = LispMakeSymbol(f_name);     \
+  o->symbol.stype = kSymConstant; \
+  o->symbol.value = v
+#define LISP_SET_CONSTANT_VALUE(f_name, v) \
+  o = LispMakeSymbol(f_name);              \
+  o->symbol.stype = kSymConstant;          \
+  o->symbol.value = v
+#define LISP_SET_SPECIAL(f_name, f) \
+  o = LispMakeSymbol(f_name);       \
+  o->symbol.value = LispMakeCFunctionSpecial(o->symbol.name, f)
+#define LISP_SET_CONSTANT_SPECIAL(f_name, f) \
+  o = LispMakeSymbol(f_name);                \
+  o->symbol.stype = kSymConstant;            \
+  o->symbol.value = LispMakeCFunctionSpecial(o->symbol.name, f)
 
 #define LISP_TYPE_OF(o) \
   ((LispType)(LISP_IMMEDIATE(o) ? LISP_IMMEDIATE(o) : ((o)->d.t)))
@@ -221,27 +217,25 @@ struct LispCons {
   LispObject cdr; /*  cdr  */
 };
 
-enum LispSymType { /*  symbol type  */
-                   kSymOrdinary = 0,
-                   kSymGenSym,
-                   kSymSpecial,
-                   kSymConstant = 32,
-                   kSymBuiltIn = 64
-};
+enum LispSymType { kSymOrdinary = 0, kSymGenSym, kSymConstant };
 
 struct LispSymbol {
-  _LISP_HDR1(stype);
-  union {
-    /*  global value of the symbol  */
-    LispObject obj;
-    LispFunc func;
-  } value;
-  uint8_t height; /*  h for AVL tree ,symbol type */
+  _LISP_HDR1(stype); /*symbol type */
+  LispObject value;
+  uint8_t height; /* h for AVL tree */
   /* AVL Tree */
   struct LispSymbol *left;
   struct LispSymbol *right;
   /* LispIndex binding;       /\*  index into the bindings array  *\/ */
   char name[1];
+};
+
+enum LispCFunctionType { kFunctionOrdinary = 0, kFunctionSpecial };
+
+struct LispCFunction {
+  _LISP_HDR1(f_type);
+  LispFunc f;
+  char *name;
 };
 
 struct LispVector {   /*  vector header  */
@@ -266,11 +260,6 @@ struct LispString {     /*  vector header  */
 
 struct LispGenSym {
   _LISP_HDR1(stype);
-  union {
-    /*  value of the gensym  */
-    LispObject obj;
-    LispFunc func;
-  } value;
   LispIndex id;
 };
 
@@ -288,7 +277,7 @@ struct LispDummy {
 SAFECAST_OP_HEADER(Cons, struct LispCons *, LISP_CONS_PTR);
 SAFECAST_OP_HEADER(Symbol, struct LispSymbol *, IDENTITY);
 SAFECAST_OP_HEADER(FixNum, LispFixNum, LISP_FIXNUM);
-SAFECAST_OP_HEADER(BuiltIn, struct LispSymbol *, LISP_BUILTIN_TO_SYM);
+SAFECAST_OP_HEADER(CFunction, struct LispCFunction *, IDENTITY);
 SAFECAST_OP_HEADER(Vector, struct LispVector *, IDENTITY);
 SAFECAST_OP_HEADER(String, struct LispString *, IDENTITY);
 SAFECAST_OP_HEADER(BitVector, struct LispBitVector *, IDENTITY);
@@ -311,8 +300,20 @@ union LispUnion {
   struct LispString string;            /*  string  */
   struct LispBitVector bit_vector;     /*  bitvector  */
   struct LispGenSym gen_sym;           /*  gensym  */
+  struct LispCFunction cfun;           /*  c-function  */
   struct LispDummy d;                  /*  dummy  */
 };
+
+#define MAKE_FUNC_HEADER(name, union_t, c_type) \
+  LispObject LispMake##name(c_type val)
+
+MAKE_FUNC_HEADER(SingleFloat, single_float, float);
+MAKE_FUNC_HEADER(DoubleFloat, double_float, double);
+MAKE_FUNC_HEADER(LongFloat, long_float, long double);
+
+/* cfunction */
+LispObject LispMakeCFunction(char *name, LispFunc fun);
+LispObject LispMakeCFunctionSpecial(char *name, LispFunc fun);
 
 /* string */
 LispObject LispMakeString(char *str);
@@ -320,6 +321,7 @@ LispObject LispMakeString(char *str);
 /* bit-vector */
 LispObject LispBitVectorResize(LispObject bv, LispIndex n);
 LispObject LispMakeBitVector(LispIndex n);
+LispObject LispMakeInitializedBitVector(LispIndex n, int val);
 void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c);
 uint32_t LispBitVectorGet(LispObject o, uint32_t n);
 

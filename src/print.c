@@ -10,11 +10,10 @@
 
 #include "memorylayout.h"
 
-
 LispObject cons_flags;
 LabelTable print_conses;
 
-#define CONS_INDEX(c)                                         \
+#define CONS_INDEX(c) \
   (((LispFixNum)LISP_CONS_PTR(c)) - ((LispFixNum)from_space))
 
 #define MARKED_P(c) LispBitVectorGet(cons_flags, CONS_INDEX(c))
@@ -96,7 +95,7 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
   int label;
   char *name;
   if (LISP_UNBOUNDP(o)) {
-    fprintf(f, "unbound!");
+    fprintf(f, "unbound");
   } else if (LISP_NULL(o)) {
     fprintf(f, "nil");
   } else if (o == LISP_T) {
@@ -127,8 +126,19 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
         fprintf(f, "\"%.*s\"", (int)o->string.size, o->string.self);
         break;
       }
-      case kBuiltIn: {
-        fprintf(f, "#.%s", (LISP_BUILTIN_TO_SYM(o))->symbol.name);
+      case kForwarded: {
+        fprintf(f, "{FORWARDED: ");
+        DoPrint(f, (LispObject)((LispFixNum)o & (~0x3)), princ);
+        fprintf(f, "}");
+        break;
+      }
+      case kCFunction: {
+        fprintf(f, "#.");
+        if (princ) {
+          fprintf(f, "%s", o->cfun.name);
+        } else {
+          PrintSymbol(f, o->cfun.name);
+        }
         break;
       }
       case kSymbol: {

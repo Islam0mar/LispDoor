@@ -116,7 +116,7 @@ struct LispSymbol *TreeBalance(struct LispSymbol *n) {
 struct LispSymbol *TreeNewLispSymbol(char *str) {
   struct LispSymbol *node =
       (struct LispSymbol *)LispAllocObject(kSymbol, strlen(str));
-  node->value.obj = LISP_UNBOUND;
+  node->value = LISP_UNBOUND;
   node->stype = kSymOrdinary;
   strcpy(node->name, str);
   node->left = node->right = NULL;

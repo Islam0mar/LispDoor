@@ -36,20 +36,21 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
       return LISP_PTR_CONS(obj);
     case kFixNum:
       return LISP_MAKE_FIXNUM(0); /* Immediate fixnum */
-    /* case kCharacter: */
-    /*   return LISP_CODE_CHAR(' '); /\* Immediate character *\/ */
-    case kLongFloat:
-      obj = (LispObject)GcMalloc(sizeof(struct LispLongFloat));
-      break;
     case kSingleFloat:
       obj = (LispObject)GcMalloc(sizeof(struct LispSingleFloat));
       break;
     case kDoubleFloat:
       obj = (LispObject)GcMalloc(sizeof(struct LispDoubleFloat));
       break;
+    case kLongFloat:
+      obj = (LispObject)GcMalloc(sizeof(struct LispLongFloat));
+      break;
     case kSymbol:
       obj = (LispObject)SymMalloc(sizeof(struct LispSymbol) +
                                   extra_size * sizeof(char) / sizeof(Byte));
+      break;
+    case kCFunction:
+      obj = (LispObject)SymMalloc(sizeof(struct LispCFunction));
       break;
     case kBitVector:
       obj = (LispObject)GcMalloc(sizeof(struct LispBitVector) + extra_size);
@@ -89,9 +90,86 @@ void *SymMalloc(LispIndex num_of_bytes) {
 
 // collector
 // ------------------------------------------------------------------
+LispObject LispCopyObject(LispObject o) {
+  LispObject o_new = o;
+  LispIndex size = 0;
+  if (LISP_UNBOUNDP(o)) {
+  } else if (LISP_NULL(o)) {
+  } else if (o == LISP_T) {
+  } else {
+    LispType t = LISP_TYPE_OF(o);
+    switch (t) {
+      case kSymbol: {
+        if (LISP_SYMBOL_GENSYMP(o)) {
+          o_new = LispMakeGenSym(0);
+          o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
+        }
+      }
+      case kFixNum: {
+        break;
+      }
+      case kSingleFloat: {
+        o_new = LispMakeSingleFloat(o->single_float.value);
+        break;
+      }
+      case kDoubleFloat: {
+        o_new = LispMakeDoubleFloat(o->double_float.value);
+
+        break;
+      }
+      case kLongFloat: {
+        o_new = LispMakeLongFloat(o->long_float.value);
+        break;
+      }
+      case kBitVector: {
+        size = o->bit_vector.size;
+        o_new = LispMakeBitVector(size);
+        memcpy(o_new->bit_vector.self, o->bit_vector.self, size);
+        break;
+      }
+      case kVector: {
+        size = o->vector.size;
+        o_new = LispMakeVector(size);
+        memcpy(o_new->vector.self, o->vector.self, size);
+        o_new->vector.fillp = o->vector.fillp;
+        break;
+      }
+      case kString: {
+        o_new = LispMakeString(o->string.self);
+        break;
+      }
+
+      case kList: {
+        LispObject a, d, nc, first, *pcdr;
+        // iterative implementation allows arbitrarily long cons chains
+        pcdr = &first;
+        do {
+          /* self referring case */
+          if ((a = LISP_CONS_CAR(o)) == LISP_UNBOUND) {
+            d = LISP_CONS_CDR(o);
+            break;
+          }
+          *pcdr = nc = MakeCons();
+          d = LISP_CONS_CDR(o);
+          LISP_CONS_CAR(o) = LISP_UNBOUND;
+          LISP_CONS_CDR(o) = nc;
+          LISP_CONS_CAR(nc) = LispCopyObject(a);
+          pcdr = &LISP_CONS_CDR(nc);
+          o = d;
+        } while (LISP_ConsP(o));
+        o_new = d;
+      }
+      default:
+        LispTypeError("object_copy", "type within known range",
+                      LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
+        assert(false);
+    }
+  }
+  return o_new;
+}
 
 LispObject GcRelocate(LispObject v) {
-  LispObject a, d, nc;
+  LispObject a, d, nc, first, *pcdr;
 
   if (!LISP_ConsP(v)) return v;
   if (LISP_CONS_CAR(v) == LISP_UNBOUND) return LISP_CONS_CDR(v);
@@ -108,9 +186,7 @@ LispObject GcRelocate(LispObject v) {
 void TraceGlobals() {
   struct LispSymbol *root = (struct LispSymbol *)LispEnv()->symbol_table;
   while (root != NULL) {
-    if (!(LISP_STRUCT_BUILTINP(root))) {
-      root->value.obj = GcRelocate(root->value.obj);
-    }
+    root->value = GcRelocate(root->value);
     TraceGlobals(root->left);
     root = root->right;
   }
@@ -118,13 +194,16 @@ void TraceGlobals() {
 /* TODO */
 void GC(void) {
   int grew = 0;
-  unsigned char *temp;
-  uint32_t i;
+  Byte *temp;
+  LispIndex i;
+  ReadState *rs;
 
   curr_heap = to_space;
-  unsigned char *lim = curr_heap + HEAP_SIZE - sizeof(struct LispCons);
+  uintptr_t lim = curr_heap + HEAP_SIZE - sizeof(union LispUnion);
 
-  for (i = 0; i < stack_ptr; i++) stack[i] = GcRelocate(stack[i]);
+  for (i = 0; i < stack_ptr; i++) {
+    stack[i] = GcRelocate(stack[i]);
+  }
   TraceGlobals();
   // #ifdef VERBOSEGC
   printf("gc found %ld/%ld live conses\n", (curr_heap - to_space) / 8,
@@ -135,7 +214,7 @@ void GC(void) {
   from_space = temp;
 
   // fixme:
-  if (curr_heap > lim) {
+  if ((uintptr_t)curr_heap > lim) {
     LispError("object space overflow.");
   }
 }

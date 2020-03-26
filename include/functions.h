@@ -251,6 +251,7 @@ LispObject Eq(LispNArg narg) {
 LispObject Set(LispNArg narg) {
   LispObject ans, v, e, bind;
   ArgCount("set", narg, 2);
+  bool done = false;
   ans = POP();
   v = POP();
   /* FixMe: (set x 10) */
@@ -263,11 +264,14 @@ LispObject Set(LispNArg narg) {
     bind = LISP_CONS_CAR(v);
     if (LISP_ConsP(bind) && LISP_CONS_CAR(bind) == e) {
       LISP_CONS_CDR(bind) = ans;
-      return ans;
+      done = true;
     }
     v = LISP_CONS_CDR(v);
   }
-  e->symbol.value.obj = ans;
+  if (!done) {
+    e->symbol.value = ans;
+  }
+
   return ans;
 }
 LispObject Boundp(LispNArg narg) {

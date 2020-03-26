@@ -12,7 +12,7 @@
 #include "print.h"
 #include "utils.h"
 
-LispIndex gen_sym_ctr = 0;
+static LispIndex gen_sym_ctr = 0;
 
 const LispEnvPtr LispEnv() {
   static struct _LispEnv env;
@@ -28,7 +28,7 @@ const LispEnvPtr LispEnv() {
 SAFECAST_OP(Cons, struct LispCons *, LISP_CONS_PTR);
 SAFECAST_OP(Symbol, struct LispSymbol *, IDENTITY);
 SAFECAST_OP(FixNum, LispFixNum, LISP_FIXNUM);
-SAFECAST_OP(BuiltIn, struct LispSymbol *, LISP_BUILTIN_TO_SYM);
+SAFECAST_OP_HEADER(CFunction, struct LispCFunction *, IDENTITY);
 SAFECAST_OP(Vector, struct LispVector *, IDENTITY);
 SAFECAST_OP(String, struct LispString *, IDENTITY);
 SAFECAST_OP(BitVector, struct LispBitVector *, IDENTITY);
@@ -37,11 +37,39 @@ SAFECAST_OP(DoubleFloat, struct LispDoubleFloat *, IDENTITY);
 SAFECAST_OP(LongFloat, struct LispLongFloat *, IDENTITY);
 SAFECAST_OP(GenSym, struct LispGenSym *, IDENTITY);
 
+/* numbers */
+#define MAKE_FUNC(name, union_t, c_type)            \
+  LispObject LispMake##name(c_type val) {           \
+    LispObject o_new = LispAllocObject(k##name, 0); \
+    o_new->union_t.value = val;                     \
+    return o_new;                                   \
+  }
+MAKE_FUNC(SingleFloat, single_float, float);
+MAKE_FUNC(DoubleFloat, double_float, double);
+MAKE_FUNC(LongFloat, long_float, long double);
+
+/* c function */
+LispObject LispMakeCFunction(char *name, LispFunc fun) {
+  LispObject obj = LispAllocObject(kCFunction, 0);
+  obj->cfun.f = fun;
+  obj->cfun.name = name;
+  obj->cfun.f_type = kFunctionOrdinary;
+  return obj;
+}
+LispObject LispMakeCFunctionSpecial(char *name, LispFunc fun) {
+  LispObject obj = LispAllocObject(kCFunction, 0);
+  obj->cfun.f = fun;
+  obj->cfun.name = name;
+  obj->cfun.f_type = kFunctionSpecial;
+  return obj;
+}
+
 /* string */
 LispObject LispMakeString(char *str) {
   LispIndex n = strlen(str);
   LispObject obj;
   obj = LispAllocObject(kString, n);
+  obj->string.size = n;
   strncpy(obj->string.self, str, n);
   return obj;
 }
@@ -50,13 +78,11 @@ LispObject LispMakeString(char *str) {
 LispObject LispBitVectorResize(LispObject bv, LispIndex n) {
   LispObject bv_new;
   LispIndex i = 0, sz = ((n + 31) >> 5) * sizeof(uint32_t);
-  if (LISP_NULL(bv) || sz > bv->bit_vector.size) {
+  if (sz > bv->bit_vector.size) {
     bv_new = LispAllocObject(kBitVector, sz);
     bv_new->bit_vector.size = sz;
-    if (!LISP_NULL(bv)) {
-      for (; i < bv->vector.size; ++i) {
-        bv_new->bit_vector.self[i] = bv->bit_vector.self[i];
-      }
+    for (; i < bv->vector.size; ++i) {
+      bv_new->bit_vector.self[i] = bv->bit_vector.self[i];
     }
     memset(&bv_new->bit_vector.self[i], 0, sz - i);
   } else {
@@ -64,9 +90,21 @@ LispObject LispBitVectorResize(LispObject bv, LispIndex n) {
   }
   return bv_new;
 }
+LispObject LispMakeInitializedBitVector(LispIndex n, int val) {
+  LispObject bv;
+  LispIndex sz = ((n + 31) >> 5) * sizeof(uint32_t);
+  bv = LispAllocObject(kBitVector, sz);
+  bv->bit_vector.size = sz;
+  memset(bv->bit_vector.self, val, sz);
+  return bv;
+}
 
 LispObject LispMakeBitVector(LispIndex n) {
-  return LispBitVectorResize(LISP_NIL, n);
+  LispObject bv;
+  LispIndex sz = ((n + 31) >> 5) * sizeof(uint32_t);
+  bv = LispAllocObject(kBitVector, sz);
+  bv->bit_vector.size = sz;
+  return bv;
 }
 
 void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c) {
@@ -128,7 +166,6 @@ LispObject LispMakeGenSym(LispIndex nargs) {
   LispObject gs = (LispObject)LispAllocObject(kGenSym, 0);
   gs->gen_sym.stype = kSymGenSym;
   gs->gen_sym.id = gen_sym_ctr++;
-  gs->gen_sym.value.obj = LISP_UNBOUND;
   return gs;
 }
 
