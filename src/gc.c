@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file gc.c
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -119,7 +119,7 @@ void TraceGlobals() {
 void GC(void) {
   int grew = 0;
   unsigned char *temp;
-  u_int32_t i;
+  uint32_t i;
 
   curr_heap = to_space;
   unsigned char *lim = curr_heap + HEAP_SIZE - sizeof(struct LispCons);

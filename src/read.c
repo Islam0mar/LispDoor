@@ -25,7 +25,7 @@ int32_t chars_buf[CHARS_BUF_SIZE];
 LispIndex chars_buf_index_start = 0;
 LispIndex chars_buf_index_end = 0;
 
-int symchar(char c) {
+bool symchar(char c) {
   static char *special = "()';`,\\|";
   return (!isspace(c) && !strchr(special, c));
 }
@@ -53,7 +53,7 @@ void UnGetChar() {
 
 char nextchar(FILE *f) {
   char c;
-  int ch;
+  int32_t ch;
 
   do {
     ch = GetChar();
@@ -73,14 +73,14 @@ char nextchar(FILE *f) {
 
 void take(void) { toktype = kTokNone; }
 
-void accumchar(char c, int *pi) {
+void accumchar(char c, int32_t *pi) {
   buf[(*pi)++] = c;
-  if (*pi >= (int)(sizeof(buf) - 1)) LispError("read: error: token too long\n");
+  if (*pi >= (int32_t)(sizeof(buf) - 1)) LispError("read: error: token too long\n");
 }
 
 // return: 1 for dot token, 0 for symbol
-int read_token(FILE *f, char c, int digits) {
-  int i = 0, ch, escaped = 0, dot = (c == '.'), totread = 0;
+int32_t read_token(FILE *f, char c, int32_t digits) {
+  int32_t i = 0, ch, escaped = 0, dot = (c == '.'), totread = 0;
 
   UnGetChar();
   while (1) {
@@ -107,7 +107,7 @@ terminate:
 }
 /* utils */
 
-u_int32_t peek(FILE *f) {
+uint32_t peek(FILE *f) {
   char c, *end;
   LispFixNum x;
 

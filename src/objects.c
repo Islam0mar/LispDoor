@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file objects.c
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -114,9 +114,9 @@ LispObject LispVectorPush(LispObject v, LispObject value) {
   return vec;
 }
 LispObject LispVectorPop(LispObject v, LispObject value) {
-  LispObject vec;
+  static LispObject vec;
   if (v->vector.fillp > 0) {
-    vec = v->vector.self[vec->vector.fillp--];
+    vec = v->vector.self[v->vector.fillp--];
   } else {
     LispError("pop empty vector.");
   }
@@ -124,7 +124,7 @@ LispObject LispVectorPop(LispObject v, LispObject value) {
 }
 /* gen-symbol */
 LispObject LispMakeGenSym(LispIndex nargs) {
-  argcount("gensym", nargs, 0);
+  ArgCount("gensym", nargs, 0);
   LispObject gs = (LispObject)LispAllocObject(kGenSym, 0);
   gs->gen_sym.stype = kSymGenSym;
   gs->gen_sym.id = gen_sym_ctr++;

@@ -10,8 +10,10 @@ Forked from [FemtoLisp](https://github.com/JeffBezanson/femtolisp) and [ECL](htt
 - fixnum, symbol, gensym(non-standard)
 
 # TODO:
+- [ ] GC complete
 - [ ] complete primitive function
 - [ ] support string,vector,bitvector
+- [ ] add tests
 - [ ] add HAL functions
 - [ ] add multitasking (maybe Round-robin scheduling)
 

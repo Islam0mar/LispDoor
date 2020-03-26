@@ -1,3 +1,10 @@
+/**
+ *   \file eval.h
+ *   \brief A Documented file.
+ *
+ *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
+ *
+ */
 #ifndef EVAL_H
 #define EVAL_H
 

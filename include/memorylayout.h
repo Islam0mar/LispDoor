@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file memorylayout.h
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -12,14 +12,17 @@
 
 /* Lisp memory model */
 #define ALIGN_BITS (LispIndex)4
-/* 1. symbol table */
 #define SYMBOL_TABLE_SIZE (LispIndex)100000
+#define PROCESS_STACK_SIZE 512
+#define N_STACK 1024
+#define HEAP_SIZE (LispFixNum)64 * 1024   /* bytes */
+
+
+/* 1. symbol table */
 extern Byte symbol_table_pool[SYMBOL_TABLE_SIZE];
 extern Byte *symbol_table_pool_here;
 /* 2. stack */
 extern char *stack_bottom;
-#define PROCESS_STACK_SIZE 512
-#define N_STACK 1024
 extern LispObject stack[N_STACK];
 extern LispFixNum stack_ptr;
 #define PUSH(v)                     \
@@ -37,7 +40,6 @@ extern Byte *from_space;
 extern Byte *to_space;
 extern Byte *curr_heap;
 extern Byte *heap_limit;
-#define HEAP_SIZE (LispFixNum)64 * 1024   /* bytes */
 extern Byte heap1[HEAP_SIZE];
 extern Byte heap2[HEAP_SIZE];
 

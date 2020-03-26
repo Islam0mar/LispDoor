@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file symboltree.c
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -10,11 +10,10 @@
 
 #include "objects.h"
 
+/* COUNT specify spaces to print for symbol tree(AVL) */
+/* COUNT distance between levels */
 #define COUNT 3
-// Function to print binary tree in 2D
-// It does reverse inorder traversal
-void print2DUtil(struct LispSymbol *root, int space);
-struct LispSymbol *SymTableLookUp(struct LispSymbol *ptree, char *str);
+void SymbolTreePrint2D(struct LispSymbol *root, int space);
 LispObject LispMakeSymbol(char *str);
 
 #endif /* SYMBOLTREE_H */

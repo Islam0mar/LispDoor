@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file read.h
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -12,7 +12,6 @@
 
 /* Lexical analyzer         input string --> tokens */
 /* read */
-
 #define NOTFOUND ((LispFixNum)-1)
 #define UEOF ((uint32_t)EOF)
 
@@ -28,7 +27,6 @@ typedef struct _ReadState {
 } ReadState;
 
 extern ReadState *read_state;
-
 
 enum {
   kTokNone,
@@ -56,22 +54,17 @@ enum {
   kTokDoubleQuote
 };
 
-int symchar(char c);
+bool symchar(char c);
 
 /* get char */
 int32_t ReadChar();
 int32_t GetChar();
 void UnGetChar();
-
 char nextchar(FILE *f);
-
 void take(void);
-
-void accumchar(char c, int *pi);
-
-// return: 1 for dot token, 0 for symbol
-int read_token(FILE *f, char c, int digits);
-u_int32_t peek(FILE *f);
+void accumchar(char c, int32_t *pi);
+int32_t read_token(FILE *f, char c, int32_t digits);
+uint32_t peek(FILE *f);
 
 /* Parser                   tokens --> ast */
 void read_list(FILE *f, LispObject *pval, LispFixNum fixup);

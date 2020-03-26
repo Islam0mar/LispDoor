@@ -6,18 +6,6 @@
  *
  */
 
-/*
-  TODO:
-  - finish data types
-  - add prmitive functions
-
- */
-/* combile command
-   gcc -Wextra -ggdb3 -O0 -Wl,--no-undefined -Wl,--no-allow-shlib-undefined
-   lispdoor.c gc.c objects.c print.c memorylayout.c read.c utils.c
-   symboltree.c -lm -o lispdoor
- */
-
 #include "lispdoor.h"
 
 

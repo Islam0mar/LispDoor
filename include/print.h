@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file print.h
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -12,10 +12,10 @@
 #include "read.h"
 #include "utils.h"
 
-/* print */
 extern LispObject cons_flags;
 extern LabelTable print_conses;
 
+/* print */
 void LispPrint(FILE *f, LispObject v, int princ);
 
 /* error utilities  */

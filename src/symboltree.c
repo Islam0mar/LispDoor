@@ -7,6 +7,7 @@
  */
 
 #include "symboltree.h"
+
 #include "gc.h"
 
 // symbol table
@@ -18,7 +19,7 @@ static inline LispFixNum TreeHeight(struct LispSymbol *o) {
 }
 
 // A utility function to get maximum of two integers
-static inline LispFixNum Max(LispFixNum a, LispFixNum b) {
+static inline LispFixNum TreeMax(LispFixNum a, LispFixNum b) {
   return (a > b) ? a : b;
 }
 
@@ -34,7 +35,7 @@ LispFixNum TreeGetBalance(struct LispSymbol *N) {
  */
 void TreeUpdateHeight(struct LispSymbol *n) {
   // Height is 1 more than the maximum child height.
-  n->height = Max(TreeHeight(n->left), TreeHeight(n->right)) + 1;
+  n->height = TreeMax(TreeHeight(n->left), TreeHeight(n->right)) + 1;
 }
 
 /*
@@ -163,10 +164,9 @@ struct LispSymbol *TreeInsert(struct LispSymbol *n, char *name) {
   return TreeBalance(n);
 }
 
-#define COUNT 3
-// Function to print binary tree in 2D
-// It does reverse inorder traversal
-void print2DUtil(struct LispSymbol *root, int space) {
+/* Function to print binary tree in 2D */
+/* It does reverse inorder traversal */
+void SymbolTreePrint2D(struct LispSymbol *root, int space) {
   // Base case
   if (root == NULL) return;
 
@@ -174,7 +174,7 @@ void print2DUtil(struct LispSymbol *root, int space) {
   space += COUNT;
 
   // Process right child first
-  print2DUtil(root->right, space);
+  SymbolTreePrint2D(root->right, space);
 
   // Print current node after space
   // count
@@ -183,10 +183,10 @@ void print2DUtil(struct LispSymbol *root, int space) {
   printf("%s\n", root->name);
 
   // Process left child
-  print2DUtil(root->left, space);
+  SymbolTreePrint2D(root->left, space);
 }
 
-struct LispSymbol *SymTableLookUp(struct LispSymbol *ptree, char *str) {
+struct LispSymbol *SymTreeLookUp(struct LispSymbol *ptree, char *str) {
   LispFixNum x;
 
   while (ptree != NULL) {
@@ -205,10 +205,10 @@ LispObject LispMakeSymbol(char *str) {
   struct LispSymbol **symbol_table =
       (struct LispSymbol **)&LispEnv()->symbol_table;
 
-  pnode = SymTableLookUp(*symbol_table, str);
+  pnode = SymTreeLookUp(*symbol_table, str);
   if (pnode == NULL) {
     *symbol_table = TreeInsert(*symbol_table, str);
-    pnode = SymTableLookUp(*symbol_table, str);
+    pnode = SymTreeLookUp(*symbol_table, str);
   }
   return (LispObject)pnode;
 }

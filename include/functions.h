@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file functions.h
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -8,11 +8,12 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
+#include "eval.h"
 #include "memorylayout.h"
 #include "objects.h"
 #include "print.h"
-#include "eval.h"
 #include "symboltree.h"
+
 /* helper functions */
 static inline LispIndex ConsCount(LispObject v) {
   LispIndex nargs = 0;
@@ -86,7 +87,7 @@ LispObject Macro(LispNArg narg) {
 /* LispObject sp(LispNArg narg) { */
 /*   LispFixNum i = stack_ptr; */
 /*   /\* Lambda/macro *\/ */
-/*   argcount("macro", narg, 0); */
+/*   ArgCount("macro", narg, 0); */
 /*   LispObject v, arg_syms, env, body, ans; */
 /*   /\* build a closure (lambda args body . frame) *\/ */
 /*   printf("\nstack_ptr: %ld\n", stack_ptr); */
@@ -242,14 +243,14 @@ LispObject Progn(LispNArg narg) {
 /* normal functions  */
 LispObject Eq(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
-  argcount("eq", narg, 2);
+  ArgCount("eq", narg, 2);
   POPN(2);
   return LISP_MAKE_BOOL(stack[stack_ptr] == stack[stack_ptr + 1]);
 }
 
 LispObject Set(LispNArg narg) {
   LispObject ans, v, e, bind;
-  argcount("set", narg, 2);
+  ArgCount("set", narg, 2);
   ans = POP();
   v = POP();
   /* FixMe: (set x 10) */
@@ -271,19 +272,19 @@ LispObject Set(LispNArg narg) {
 }
 LispObject Boundp(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
-  argcount("boundp", narg, 1);
+  ArgCount("boundp", narg, 1);
   POP();
   return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr]));
 }
 LispObject LispCons(LispNArg narg) {
-  argcount("cons", narg, 2);
+  ArgCount("cons", narg, 2);
   LispObject c = MakeCons();
   LISP_CONS_CAR(c) = stack[stack_ptr - 2];
   LISP_CONS_CDR(c) = stack[stack_ptr - 1];
   return c;
 }
 LispObject LispCar(LispNArg narg) {
-  argcount("car", narg, 1);
+  ArgCount("car", narg, 1);
   if (!LISP_ConsP(stack[stack_ptr - 1])) {
     LispTypeError("car", "cons", stack[stack_ptr - 1]);
   };
@@ -291,7 +292,7 @@ LispObject LispCar(LispNArg narg) {
 }
 
 LispObject LispCdr(LispNArg narg) {
-  argcount("cdr", narg, 1);
+  ArgCount("cdr", narg, 1);
   /* if (!LISP_ConsP(stack[stack_ptr - 1])) { */
   /*   LispTypeError("cdr", "cons", stack[stack_ptr - 1]); */
   /* }; */

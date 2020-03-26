@@ -7,8 +7,9 @@
  */
 
 #include "utils.h"
-#include "print.h"
+
 #include "gc.h"
+#include "print.h"
 
 static const uint32_t offsetsFromUTF8[6] = {0x00000000UL, 0x00003080UL,
                                             0x000E2080UL, 0x03C82080UL,
@@ -83,7 +84,7 @@ void LabelTableAdjoin(LabelTable *t, LispObject item) {
   }
 }
 
-int u8_seqlen(const char c) {
+int UTF8SeqLen(const char c) {
   return trailingBytesForUTF8[(unsigned int)(unsigned char)c] + 1;
 }
 
@@ -94,7 +95,7 @@ uint32_t UTF8GetChar(FILE *f) {
   c = GetChar();
   if (c == EOF) return UEOF;
   ch = (uint32_t)c;
-  amt = sz = u8_seqlen(ch);
+  amt = sz = UTF8SeqLen(ch);
   while (--amt) {
     ch <<= 6;
     c = GetChar();
@@ -105,4 +106,3 @@ uint32_t UTF8GetChar(FILE *f) {
 
   return ch;
 }
-
