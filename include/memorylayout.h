@@ -37,7 +37,7 @@ extern Byte *from_space;
 extern Byte *to_space;
 extern Byte *curr_heap;
 extern Byte *heap_limit;
-#define HEAP_SIZE (LispFixNum)64 * 1024  // bytes
+#define HEAP_SIZE (LispFixNum)64 * 1024   /* bytes */
 extern Byte heap1[HEAP_SIZE];
 extern Byte heap2[HEAP_SIZE];
 

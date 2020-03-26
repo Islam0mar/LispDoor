@@ -10,6 +10,26 @@
 
 #include "objects.h"
 
+/* Lexical analyzer         input string --> tokens */
+/* read */
+
+#define NOTFOUND ((LispFixNum)-1)
+#define UEOF ((uint32_t)EOF)
+
+typedef struct {
+  LispIndex n, maxsize;
+  LispObject *items;
+} LabelTable;
+
+typedef struct _ReadState {
+  LabelTable labels;
+  LabelTable exprs;
+  struct _ReadState *prev;
+} ReadState;
+
+extern ReadState *read_state;
+
+
 enum {
   kTokNone,
   kTokOpen,

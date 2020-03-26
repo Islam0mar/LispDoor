@@ -13,6 +13,23 @@
 #include "print.h"
 #include "eval.h"
 #include "symboltree.h"
+/* helper functions */
+static inline LispIndex ConsCount(LispObject v) {
+  LispIndex nargs = 0;
+  while (LISP_ConsP(v)) {
+    nargs++;
+    v = LISP_CONS_CDR(v);
+  }
+  return nargs;
+}
+static inline LispObject ConsNth(LispIndex n, LispObject lst) {
+  LispIndex i = 0;
+  for (; i < n; ++i) {
+    lst = LISP_CONS_CDR(lst);
+  }
+  lst = LISP_CONS_CAR(lst);
+  return lst;
+}
 
 // Builtin functions
 // -------------------------------------------------------------

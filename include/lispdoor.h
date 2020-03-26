@@ -8,11 +8,8 @@
 #ifndef LISPDOOR_H
 #define LISPDOOR_H
 
-/* header only */
 #include "eval.h"
 #include "functions.h"
-
-/* header + src */
 #include "gc.h"
 #include "memorylayout.h"
 #include "objects.h"

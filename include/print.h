@@ -13,8 +13,8 @@
 #include "utils.h"
 
 /* print */
-LispObject cons_flags;
-LabelTable print_conses;
+extern LispObject cons_flags;
+extern LabelTable print_conses;
 
 void LispPrint(FILE *f, LispObject v, int princ);
 

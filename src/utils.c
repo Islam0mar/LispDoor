@@ -105,24 +105,4 @@ uint32_t UTF8GetChar(FILE *f) {
 
   return ch;
 }
- void argcount(char *fname, LispIndex nargs, LispIndex c) {
-  if (nargs != c)
-    LispError("%s: error: too %s arguments\n", fname,
-              nargs < c ? "few" : "many");
-}
-static inline LispIndex ConsCount(LispObject v) {
-  LispIndex nargs = 0;
-  while (LISP_ConsP(v)) {
-    nargs++;
-    v = LISP_CONS_CDR(v);
-  }
-  return nargs;
-}
-static inline LispObject ConsNth(LispIndex n, LispObject lst) {
-  LispIndex i = 0;
-  for (; i < n; ++i) {
-    lst = LISP_CONS_CDR(lst);
-  }
-  lst = LISP_CONS_CAR(lst);
-  return lst;
-}
+

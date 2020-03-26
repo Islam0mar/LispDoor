@@ -10,7 +10,11 @@
 
 #include "memorylayout.h"
 
-#define CONS_INDEX(c) \
+
+LispObject cons_flags;
+LabelTable print_conses;
+
+#define CONS_INDEX(c)                                         \
   (((LispFixNum)LISP_CONS_PTR(c)) - ((LispFixNum)from_space))
 
 #define MARKED_P(c) LispBitVectorGet(cons_flags, CONS_INDEX(c))

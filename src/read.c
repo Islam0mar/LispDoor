@@ -15,6 +15,8 @@
 #include "symboltree.h"
 #include "utils.h"
 
+ReadState *read_state = NULL;
+
 LispFixNum toktype = kTokNone;
 LispObject tokval;
 char buf[256];

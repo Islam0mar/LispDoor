@@ -9,7 +9,7 @@
 /*
   TODO:
   - finish data types
-  - add prmitive types
+  - add prmitive functions
 
  */
 /* combile command
@@ -20,17 +20,7 @@
 
 #include "lispdoor.h"
 
-// read
-// -----------------------------------------------------------------------
 
-/* Lexical analyzer         input string --> tokens */
-// read
-// -----------------------------------------------------------------------
-
-/* Printing */
-
-// eval
-// -----------------------------------------------------------------------
 LispObject LispApply(LispObject fun, LispObject arg_list) {
   LispObject v, bind, ans, *arg_syms, sym, *body, *frame, frame_aux1,
       frame_aux2, *rest, label;
