@@ -17,13 +17,25 @@
 
 ReadState *read_state = NULL;
 
-LispFixNum toktype = kTokNone;
+LispIndex toktype = kTokNone;
 LispObject tokval;
-char buf[256];
-#define CHARS_BUF_SIZE 33U
-int32_t chars_buf[CHARS_BUF_SIZE];
-LispIndex chars_buf_index_start = 0;
-LispIndex chars_buf_index_end = 0;
+
+static const uint32_t offsets_from_utf8[6] = {0x00000000UL, 0x00003080UL,
+                                              0x000E2080UL, 0x03C82080UL,
+                                              0xFA082080UL, 0x82082080UL};
+
+static const char trailing_Bytes_For_utf8[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
 
 bool symchar(char c) {
   static char *special = "()';`,\\|";
@@ -31,7 +43,7 @@ bool symchar(char c) {
 }
 
 /* get char */
-int32_t ReadChar() { return getchar(); }
+static inline int32_t ReadChar() { return getchar(); }
 int32_t GetChar() {
   int32_t c;
   if (chars_buf_index_start == chars_buf_index_end) {
@@ -49,6 +61,29 @@ void UnGetChar() {
   } else {
     chars_buf_index_start--;
   }
+}
+
+int32_t UTF8SeqLen(const char c) {
+  return trailing_Bytes_For_utf8[(unsigned int)(unsigned char)c] + 1;
+}
+
+uint32_t UTF8GetChar(FILE *f) {
+  int32_t amt = 0, sz, c;
+  uint32_t ch = 0;
+
+  c = GetChar();
+  if (c == EOF) return UEOF;
+  ch = (uint32_t)c;
+  amt = sz = UTF8SeqLen(ch);
+  while (--amt) {
+    ch <<= 6;
+    c = GetChar();
+    if (c == EOF) return UEOF;
+    ch += (uint32_t)c;
+  }
+  ch -= offsets_from_utf8[sz - 1];
+
+  return ch;
 }
 
 char nextchar(FILE *f) {
@@ -75,11 +110,13 @@ void take(void) { toktype = kTokNone; }
 
 void accumchar(char c, int32_t *pi) {
   buf[(*pi)++] = c;
-  if (*pi >= (int32_t)(sizeof(buf) - 1)) LispError("read: error: token too long\n");
+  if (*pi >= (int32_t)(sizeof(buf) - 1))
+    LispError("read: error: token too long\n");
 }
 
 // return: 1 for dot token, 0 for symbol
-int32_t read_token(FILE *f, char c, int32_t digits) {
+/* return: true for dot token, false for symbol */
+bool read_token(FILE *f, char c, bool digits) {
   int32_t i = 0, ch, escaped = 0, dot = (c == '.'), totread = 0;
 
   UnGetChar();
@@ -105,9 +142,8 @@ terminate:
   buf[i++] = '\0';
   return (dot && (totread == 2));
 }
-/* utils */
 
-uint32_t peek(FILE *f) {
+LispIndex peek(FILE *f) {
   char c, *end;
   LispFixNum x;
 
@@ -134,7 +170,7 @@ uint32_t peek(FILE *f) {
       toktype = kTokNum;
       tokval = LISP_MAKE_FIXNUM(UTF8GetChar(f));
     } else if (isdigit((char)c)) {
-      read_token(f, (char)c, 1);
+      read_token(f, (char)c, true);
       c = (char)GetChar();
       if (c == '#')
         toktype = kTokBackRef;
@@ -158,7 +194,7 @@ uint32_t peek(FILE *f) {
     else
       UnGetChar();
   } else if (isdigit(c) || c == '-' || c == '+') {
-    read_token(f, c, 0);
+    read_token(f, c, false);
     if (c == '0' && (buf[1] == 'b')) {
       x = strtol(buf + 2, &end, 2);
     } else {
@@ -172,7 +208,7 @@ uint32_t peek(FILE *f) {
       tokval = LISP_MAKE_FIXNUM(x);
     }
   } else {
-    if (read_token(f, c, 0)) {
+    if (read_token(f, c, false)) {
       toktype = kTokDot;
     } else {
       toktype = kTokSym;

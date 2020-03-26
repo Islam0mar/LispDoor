@@ -17,7 +17,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 /*
         Definition of the type of LISP objects.
@@ -197,11 +196,6 @@ typedef enum {
 
 #define LISP_TYPE_OF(o) \
   ((LispType)(LISP_IMMEDIATE(o) ? LISP_IMMEDIATE(o) : ((o)->d.t)))
-
-/* gen-sym */
-extern LispIndex gen_sym_ctr;
-#define GEN_SYM_NAME_SIZE 33
-char gs_name[GEN_SYM_NAME_SIZE];
 
 #define _LISP_HDR uint8_t t
 #define _LISP_HDR1(field) uint8_t t, field

@@ -56,15 +56,15 @@ enum {
 
 bool symchar(char c);
 
-/* get char */
-int32_t ReadChar();
+/* FixMe: exclude EOF(-1) value and change int32_t to char */
 int32_t GetChar();
+uint32_t UTF8GetChar(FILE *f);
 void UnGetChar();
 char nextchar(FILE *f);
 void take(void);
 void accumchar(char c, int32_t *pi);
-int32_t read_token(FILE *f, char c, int32_t digits);
-uint32_t peek(FILE *f);
+bool read_token(FILE *f, char c, bool digits);
+LispIndex peek(FILE *f);
 
 /* Parser                   tokens --> ast */
 void read_list(FILE *f, LispObject *pval, LispFixNum fixup);

@@ -23,4 +23,11 @@ Byte *curr_heap;
 Byte *heap_limit;
 Byte heap1[HEAP_SIZE];
 Byte heap2[HEAP_SIZE];
-
+/* 4. read buffer */
+char buf[256];
+/* 5. read character buffer */
+int32_t chars_buf[CHARS_BUF_SIZE];
+LispIndex chars_buf_index_start = 0;
+LispIndex chars_buf_index_end = 0;
+/* 6. gensym name buffer */
+char gs_name[GEN_SYM_NAME_SIZE];

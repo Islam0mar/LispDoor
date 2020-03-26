@@ -11,23 +11,6 @@
 #include "gc.h"
 #include "print.h"
 
-static const uint32_t offsetsFromUTF8[6] = {0x00000000UL, 0x00003080UL,
-                                            0x000E2080UL, 0x03C82080UL,
-                                            0xFA082080UL, 0x82082080UL};
-
-static const char trailingBytesForUTF8[256] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
-
 char *Uint2Str(char *dest, LispIndex len, LispIndex num, Byte base) {
   LispIndex i = len - 1;
   LispIndex b = (LispIndex)base;
@@ -84,25 +67,4 @@ void LabelTableAdjoin(LabelTable *t, LispObject item) {
   }
 }
 
-int UTF8SeqLen(const char c) {
-  return trailingBytesForUTF8[(unsigned int)(unsigned char)c] + 1;
-}
 
-uint32_t UTF8GetChar(FILE *f) {
-  int amt = 0, sz, c;
-  uint32_t ch = 0;
-
-  c = GetChar();
-  if (c == EOF) return UEOF;
-  ch = (uint32_t)c;
-  amt = sz = UTF8SeqLen(ch);
-  while (--amt) {
-    ch <<= 6;
-    c = GetChar();
-    if (c == EOF) return UEOF;
-    ch += (uint32_t)c;
-  }
-  ch -= offsetsFromUTF8[sz - 1];
-
-  return ch;
-}
