@@ -10,6 +10,7 @@
 #include "memorylayout.h"
 #include "print.h"
 #include "symboltree.h"
+#include "utils.h"
 
 /* if lispobject is forwarded:
    1. kForwarded is set

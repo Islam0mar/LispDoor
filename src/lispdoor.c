@@ -9,11 +9,10 @@
 #include "lispdoor.h"
 
 LispObject LispApply(LispObject fun, LispObject arg_list) {
-  LispObject v, bind, ans, *arg_syms, sym, *body, *frame, frame_aux1,
-      frame_aux2, *rest, label;
-  LispFunc f;
+  LispObject v, ans, *arg_syms, sym, *body, *frame, frame_aux1, frame_aux2,
+      *rest, label;
   LispFixNum saved_stack_ptr = stack_ptr, nargs;
-  LispEnvPtr penv = LispEnv(), lenv;
+  LispEnvPtr penv = LispEnv();
   /* protect from GC */
   PUSH(penv->frame);
   PUSH(fun);
@@ -124,7 +123,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
             penv->frame = stack[saved_stack_ptr]; /* old_frame */
             PUSH(v);
             v = cons_(stack[stack_ptr - 1], LISP_NIL);
-            POP();
+            POPN(1);
             if (LISP_ConsP(*rest))
               LISP_CONS_CDR(*rest) = v;
             else
@@ -150,16 +149,16 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
 
   } else {
     LispTypeError("apply", "lambda, macro, label or builtin", fun);
+    ans = LISP_NIL;
   }
   stack_ptr = saved_stack_ptr;
   return ans;
 }
 
 LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
-  LispObject ans = LISP_NIL, v, aux, arg_list, bind, func, arg_syms, *frame,
-             body;
-  LispFixNum saved_stack_ptr, nargs;
-EVAL_TOP:
+  LispObject ans = LISP_NIL, v, arg_list, bind, func, *frame;
+  LispFixNum saved_stack_ptr;
+  /* EVAL_TOP: */
   saved_stack_ptr = stack_ptr;
   ans = LISP_UNBOUND;
   PUSH(expr);
@@ -207,8 +206,6 @@ EVAL_TOP:
 // initialization
 // -------------------------------------------------------------
 void LispInit(void) {
-  int i;
-
   stack_ptr = 0;
   symbol_table_pool_here = symbol_table_pool;
   from_space = heap1;
@@ -226,10 +223,8 @@ void LispInit(void) {
   LispObject o;
 
   LISP_SET_FUNCTION("gc", GC);
-
   LISP_SET_CONSTANT_VALUE("nil", LISP_NIL);
   LISP_SET_CONSTANT_VALUE("t", LISP_T);
-  /* LTANT(  Sum);*/
   LISP_SET_SPECIAL("lambda", Lambda);
   LISP_SET_SPECIAL("macro", Macro);
   LISP_SET_SPECIAL("quote", Quote);
@@ -253,9 +248,6 @@ void LispInit(void) {
 }
 // repl
 // -----------------------------------------------------------------------
-
-static char *infile = NULL;
-
 LispObject TopLevelEval(LispObject expr) {
   LispObject v;
   LispIndex saved_stack_ptr = stack_ptr;

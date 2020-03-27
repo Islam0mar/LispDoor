@@ -1,5 +1,5 @@
 /**
- *   \file lispdoor.c
+ *   \file read.c
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
@@ -14,6 +14,32 @@
 #include "read.h"
 #include "symboltree.h"
 #include "utils.h"
+
+enum {
+  kTokNone,
+  kTokOpen,
+  kTokClose,
+  kTokDot,
+  kTokQuote,
+  kTokSym,
+  kTokNum,
+  kTokSingleFloat,
+  kTokDoubleFloat,
+  kTokBackQuote,
+  kTokComma,
+  kTokCommaAt,
+  kTokCommaDot,
+  kTokSharpDot,
+  kTokLabel,
+  kTokBackRef,
+  kTokSharpQuote,
+  kTokSharpOpen,
+  kTokOpenB,
+  kTokCloseB,
+  kTokSharpSym,
+  kTokGenSym,
+  kTokDoubleQuote
+};
 
 ReadState *read_state = NULL;
 
@@ -37,17 +63,17 @@ static const char trailing_bytes_for_utf8[256] = {
     1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
     3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
 
-bool symchar(char c) {
+bool SymCharP(char c) {
   static char *special = "()';`,\\|";
   return (!isspace(c) && !strchr(special, c));
 }
 
 /* get char */
-static inline int32_t ReadChar() { return getchar(); }
-int32_t GetChar() {
+static inline int32_t ReadChar(FILE *f) { return fgetc(f); }
+int32_t GetChar(FILE *f) {
   int32_t c;
   if (chars_buf_index_start == chars_buf_index_end) {
-    c = ReadChar();
+    c = ReadChar(f);
     chars_buf[chars_buf_index_end++] = c;
     chars_buf_index_end = chars_buf_index_end % CHARS_BUF_SIZE;
   }
@@ -71,13 +97,13 @@ uint32_t UTF8GetChar(FILE *f) {
   int32_t amt = 0, sz, c;
   uint32_t ch = 0;
 
-  c = GetChar();
+  c = GetChar(f);
   if (c == EOF) return UEOF;
   ch = (uint32_t)c;
   amt = sz = UTF8SeqLen(ch);
   while (--amt) {
     ch <<= 6;
-    c = GetChar();
+    c = GetChar(f);
     if (c == EOF) return UEOF;
     ch += (uint32_t)c;
   }
@@ -91,13 +117,13 @@ char nextchar(FILE *f) {
   int32_t ch;
 
   do {
-    ch = GetChar();
+    ch = GetChar(f);
     if (ch == EOF) return 0;
     c = (char)ch;
     if (c == ';') {
       // single-line comment
       do {
-        ch = GetChar();
+        ch = GetChar(f);
         if (ch == EOF) return 0;
       } while ((char)ch != '\n');
       c = (char)ch;
@@ -121,17 +147,17 @@ bool read_token(FILE *f, char c, bool digits) {
 
   UnGetChar();
   while (1) {
-    ch = GetChar();
+    ch = GetChar(f);
     totread++;
     if (ch == EOF) goto terminate;
     c = (char)ch;
     if (c == '|') {
       escaped = !escaped;
     } else if (c == '\\') {
-      ch = GetChar();
+      ch = GetChar(f);
       if (ch == EOF) goto terminate;
       accumchar((char)ch, &i);
-    } else if (!escaped && !(symchar(c) && (!digits || isdigit(c)))) {
+    } else if (!escaped && !(SymCharP(c) && (!digits || isdigit(c)))) {
       break;
     } else {
       accumchar(c, &i);
@@ -159,7 +185,7 @@ LispIndex peek(FILE *f) {
   } else if (c == '`') {
     toktype = kTokBackQuote;
   } else if (c == '#') {
-    c = GetChar();
+    c = GetChar(f);
     if (c == EOF) LispError("read: error: invalid read macro\n");
     if ((char)c == '.') {
       toktype = kTokSharpDot;
@@ -171,7 +197,7 @@ LispIndex peek(FILE *f) {
       tokval = LISP_MAKE_CHARACTER(UTF8GetChar(f));
     } else if (isdigit((char)c)) {
       read_token(f, (char)c, true);
-      c = (char)GetChar();
+      c = (char)GetChar(f);
       if (c == '#')
         toktype = kTokBackRef;
       else if (c == '=')
@@ -185,7 +211,7 @@ LispIndex peek(FILE *f) {
     }
   } else if (c == ',') {
     toktype = kTokComma;
-    c = GetChar();
+    c = GetChar(f);
     if (c == EOF) return toktype;
     if ((char)c == '@')
       toktype = kTokCommaAt;
@@ -219,6 +245,7 @@ LispIndex peek(FILE *f) {
 }
 
 /* Parser                   tokens --> ast */
+LispObject do_read_sexpr(FILE *f, LispFixNum fixup);
 // build a list of conses. this is complicated by the fact that all conses
 // can move whenever a new cons is allocated. we have to refer to every cons
 // through a handle to a relocatable pointer (i.e. a pointer on the stack).
@@ -262,7 +289,7 @@ void read_list(FILE *f, LispObject *pval, LispFixNum fixup) {
     }
   }
   take();
-  POP();
+  POPN(1);
 }
 
 /* fixup is the index of the label we'd like to fix up with this read */
@@ -270,7 +297,6 @@ LispObject do_read_sexpr(FILE *f, LispFixNum fixup) {
   LispObject v = LISP_NIL, head;
   LispIndex i;
   uint32_t t = peek(f);
-  int32_t c;
   bool list_p = false;
   take();
   switch (t) {
@@ -316,14 +342,6 @@ LispObject do_read_sexpr(FILE *f, LispFixNum fixup) {
       v = do_read_sexpr(f, fixup);
       break;
     }
-    /* case kTokBackQuote: */
-    /*   take(); */
-    /*   v = do_read_sexpr(f); */
-    /*   PUSH(v); */
-    /*   v = cons_(LispMakeSymbol("'"), cons(stack[stack_ptr - 1], LISP_NIL));
-     */
-    /*   POPN(2); */
-    /*   return v; */
     case kTokOpen: {
       PUSH(LISP_NIL);
       read_list(f, &stack[stack_ptr - 1], fixup);
@@ -393,5 +411,20 @@ LispObject ReadSexpr(FILE *f) {
   v = do_read_sexpr(f, -1);
 
   read_state = state.prev;
+  return v;
+}
+
+LispObject LoadFile(char *fname) {
+  LispObject e, v = LISP_NIL;
+  FILE *f = fopen(fname, "r");
+  if (f == NULL) {
+    LispError("file not found\n");
+  }
+  while (1) {
+    e = ReadSexpr(f);
+    if (feof(f)) break;
+    v = TopLevelEval(e);
+  }
+  fclose(f);
   return v;
 }

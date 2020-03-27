@@ -12,6 +12,7 @@
 #include <locale.h>
 
 #include "memorylayout.h"
+#include "utils.h"
 
 LispObject cons_flags;
 LabelTable print_conses;
@@ -64,7 +65,7 @@ static void PrintSymbol(FILE *f, char *name) {
   if (name[0] == '#') escape = 1;
   i = 0;
   while (name[i]) {
-    if (!symchar(name[i])) {
+    if (!SymCharP(name[i])) {
       escape = 1;
       if (name[i] == '|' || name[i] == '\\') {
         charescape = 1;
@@ -96,7 +97,6 @@ static void PrintSymbol(FILE *f, char *name) {
 static void DoPrint(FILE *f, LispObject o, int princ) {
   LispObject cd;
   LispFixNum label;
-  char *name;
   if (LISP_UNBOUNDP(o)) {
     fprintf(f, "unbound");
   } else if (LISP_NULL(o)) {
@@ -115,7 +115,7 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
               "Can't set the specified locale! "
               "Check LANG, LC_CTYPE, LC_ALL.\n");
         }
-        fprintf(f, "#\\%lc", LISP_CHAR_CODE(o));
+        fprintf(f, "#\\%lc", (uint32_t)LISP_CHAR_CODE(o));
         break;
       }
       case kLongFloat: {

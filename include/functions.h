@@ -13,6 +13,7 @@
 #include "objects.h"
 #include "print.h"
 #include "symboltree.h"
+#include "utils.h"
 
 /* helper functions */
 static inline LispIndex ConsCount(LispObject v) {
@@ -43,11 +44,9 @@ LispObject Sum(LispNArg narg) {
   return LISP_MAKE_FIXNUM(ans);
 }
 LispObject Label(LispNArg narg) {
-  LispObject v, *pv, *frame, *body;
+  LispObject v, *pv, *body;
   /* the syntax of label is (label name (lambda args body ...)) */
   v = POP();
-  PUSH(LispEnv()->frame);
-  frame = &stack[stack_ptr - 1];
   PUSH(LISP_CONS_CAR(v)); /* name */
   pv = &stack[stack_ptr - 1];
   PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v))); /* function */
@@ -57,7 +56,7 @@ LispObject Label(LispNArg narg) {
   return v;
 }
 LispObject Lambda(LispNArg narg) {
-  LispObject v, arg_syms, env, body, ans;
+  LispObject v, arg_syms, body, ans;
   /* build a closure (lambda args body . frame) */
   v = POP();
   PUSH(LISP_CONS_CAR(v));
@@ -71,7 +70,7 @@ LispObject Lambda(LispNArg narg) {
   return ans;
 }
 LispObject Macro(LispNArg narg) {
-  LispObject v, arg_syms, env, body, ans;
+  LispObject v, arg_syms, body, ans;
   /* build a closure (lambda args body . frame) */
   v = POP();
   PUSH(LISP_CONS_CAR(v));
@@ -88,7 +87,6 @@ LispObject Sp(LispNArg narg) {
   LispFixNum i = stack_ptr;
   /* Lambda/macro */
   ArgCount("macro", narg, 0);
-  LispObject v, arg_syms, env, body, ans;
   /* build a closure (lambda args body . frame) */
   printf("\nstack_ptr: %ld\n", stack_ptr);
   printf("stack: %p\n", stack);
@@ -135,7 +133,7 @@ LispObject Cond(LispNArg narg) {
   /*    (test2    action2) */
   /*    ... */
   /*    (testn   actionn))*/
-  LispObject ans = LISP_NIL, *pv, v, *frame, *body;
+  LispObject ans = LISP_NIL, *pv, v, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
   pv = &stack[stack_ptr - 2];
@@ -165,7 +163,7 @@ LispObject Cond(LispNArg narg) {
   return ans;
 }
 LispObject And(LispNArg narg) {
-  LispObject ans = LISP_T, *pv, *frame, *body;
+  LispObject ans = LISP_T, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
   pv = &stack[stack_ptr - 2];
@@ -183,7 +181,7 @@ LispObject And(LispNArg narg) {
   return ans;
 }
 LispObject Or(LispNArg narg) {
-  LispObject ans = LISP_NIL, *pv, *frame, *body;
+  LispObject ans = LISP_NIL, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
   pv = &stack[stack_ptr - 2];
@@ -225,7 +223,7 @@ LispObject While(LispNArg narg) {
 }
 LispObject Progn(LispNArg narg) {
   /* return last arg */
-  LispObject ans = LISP_NIL, *frame, *body, *cond;
+  LispObject ans = LISP_NIL, *frame, *body;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
   body = &stack[stack_ptr - 2];
@@ -277,7 +275,7 @@ LispObject Set(LispNArg narg) {
 LispObject Boundp(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("boundp", narg, 1);
-  POP();
+  POPN(1);
   return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr]));
 }
 LispObject LispCons(LispNArg narg) {

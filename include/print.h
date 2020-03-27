@@ -10,7 +10,6 @@
 
 #include "objects.h"
 #include "read.h"
-#include "utils.h"
 
 extern LispObject cons_flags;
 extern LabelTable print_conses;

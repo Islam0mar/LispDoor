@@ -28,47 +28,8 @@ typedef struct _ReadState {
 
 extern ReadState *read_state;
 
-enum {
-  kTokNone,
-  kTokOpen,
-  kTokClose,
-  kTokDot,
-  kTokQuote,
-  kTokSym,
-  kTokNum,
-  kTokSingleFloat,
-  kTokDoubleFloat,
-  kTokBackQuote,
-  kTokComma,
-  kTokCommaAt,
-  kTokCommaDot,
-  kTokSharpDot,
-  kTokLabel,
-  kTokBackRef,
-  kTokSharpQuote,
-  kTokSharpOpen,
-  kTokOpenB,
-  kTokCloseB,
-  kTokSharpSym,
-  kTokGenSym,
-  kTokDoubleQuote
-};
-
-bool symchar(char c);
-
-/* FixMe: exclude EOF(-1) value and change int32_t to char */
-int32_t GetChar();
-uint32_t UTF8GetChar(FILE *f);
-void UnGetChar();
-char nextchar(FILE *f);
-void take(void);
-void accumchar(char c, int32_t *pi);
-bool read_token(FILE *f, char c, bool digits);
-LispIndex peek(FILE *f);
-
-/* Parser                   tokens --> ast */
-void read_list(FILE *f, LispObject *pval, LispFixNum fixup);
-LispObject do_read_sexpr(FILE *f, LispFixNum fixup);
+bool SymCharP(char c);
 LispObject ReadSexpr(FILE *f);
+LispObject LoadFile(char *fname);
 
 #endif /* READ_H */
