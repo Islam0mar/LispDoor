@@ -50,7 +50,7 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
                                   extra_size * sizeof(char) / sizeof(Byte));
       break;
     case kCFunction:
-      obj = (LispObject)SymMalloc(sizeof(struct LispCFunction));
+      obj = (LispObject)GcMalloc(sizeof(struct LispCFunction));
       break;
     case kBitVector:
       obj = (LispObject)GcMalloc(sizeof(struct LispBitVector) + extra_size);
@@ -90,7 +90,7 @@ void *SymMalloc(LispIndex num_of_bytes) {
 
 // collector
 // ------------------------------------------------------------------
-LispObject LispCopyObject(LispObject o) {
+LispObject LispDoRelocate(LispObject o) {
   LispObject o_new = o;
   LispIndex size = 0;
   if (LISP_UNBOUNDP(o)) {
@@ -99,43 +99,66 @@ LispObject LispCopyObject(LispObject o) {
   } else {
     LispType t = LISP_TYPE_OF(o);
     switch (t) {
+      case kForwarded: {
+        o_new = LISP_FORWARD(o);
+        break;
+      }
       case kSymbol: {
         if (LISP_SYMBOL_GENSYMP(o)) {
           o_new = LispMakeGenSym(0);
           o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
+          LISP_SET_FORWARDED(o, o_new);
         }
+        break;
       }
       case kFixNum: {
         break;
       }
       case kSingleFloat: {
         o_new = LispMakeSingleFloat(o->single_float.value);
+        LISP_SET_FORWARDED(o, o_new);
         break;
       }
       case kDoubleFloat: {
         o_new = LispMakeDoubleFloat(o->double_float.value);
-
+        LISP_SET_FORWARDED(o, o_new);
         break;
       }
       case kLongFloat: {
         o_new = LispMakeLongFloat(o->long_float.value);
+        LISP_SET_FORWARDED(o, o_new);
+        break;
+      }
+      case kCFunction: {
+        if (o->cfun.f_type == kFunctionSpecial) {
+          o_new = LispMakeCFunctionSpecial(o->cfun.name, o->cfun.f);
+        } else {
+          o_new = LispMakeCFunction(o->cfun.name, o->cfun.f);
+        }
+        LISP_SET_FORWARDED(o, o_new);
         break;
       }
       case kBitVector: {
         size = o->bit_vector.size;
         o_new = LispMakeBitVector(size);
         memcpy(o_new->bit_vector.self, o->bit_vector.self, size);
+        LISP_SET_FORWARDED(o, o_new);
         break;
       }
       case kVector: {
         size = o->vector.size;
         o_new = LispMakeVector(size);
-        memcpy(o_new->vector.self, o->vector.self, size);
         o_new->vector.fillp = o->vector.fillp;
+        LISP_SET_FORWARDED(o, o_new);
+        LispIndex i = 0;
+        for (i = 0; i < size; ++i) {
+          o_new->vector.self[i] = LispDoRelocate(o->vector.self[i]);
+        }
         break;
       }
       case kString: {
         o_new = LispMakeString(o->string.self);
+        LISP_SET_FORWARDED(o, o_new);
         break;
       }
 
@@ -153,7 +176,7 @@ LispObject LispCopyObject(LispObject o) {
           d = LISP_CONS_CDR(o);
           LISP_CONS_CAR(o) = LISP_UNBOUND;
           LISP_CONS_CDR(o) = nc;
-          LISP_CONS_CAR(nc) = LispCopyObject(a);
+          LISP_CONS_CAR(nc) = LispDoRelocate(a);
           pcdr = &LISP_CONS_CDR(nc);
           o = d;
         } while (LISP_ConsP(o));

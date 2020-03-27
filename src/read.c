@@ -24,7 +24,7 @@ static const uint32_t offsets_from_utf8[6] = {0x00000000UL, 0x00003080UL,
                                               0x000E2080UL, 0x03C82080UL,
                                               0xFA082080UL, 0x82082080UL};
 
-static const char trailing_Bytes_For_utf8[256] = {
+static const char trailing_bytes_for_utf8[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -64,7 +64,7 @@ void UnGetChar() {
 }
 
 int32_t UTF8SeqLen(const char c) {
-  return trailing_Bytes_For_utf8[(unsigned int)(unsigned char)c] + 1;
+  return trailing_bytes_for_utf8[(unsigned int)(unsigned char)c] + 1;
 }
 
 uint32_t UTF8GetChar(FILE *f) {
@@ -168,7 +168,7 @@ LispIndex peek(FILE *f) {
     } else if ((char)c == '\\') {
       /* FixMe: */
       toktype = kTokNum;
-      tokval = LISP_MAKE_FIXNUM(UTF8GetChar(f));
+      tokval = LISP_MAKE_CHARACTER(UTF8GetChar(f));
     } else if (isdigit((char)c)) {
       read_token(f, (char)c, true);
       c = (char)GetChar();

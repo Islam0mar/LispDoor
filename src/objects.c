@@ -28,7 +28,8 @@ const LispEnvPtr LispEnv() {
 SAFECAST_OP(Cons, struct LispCons *, LISP_CONS_PTR);
 SAFECAST_OP(Symbol, struct LispSymbol *, IDENTITY);
 SAFECAST_OP(FixNum, LispFixNum, LISP_FIXNUM);
-SAFECAST_OP_HEADER(CFunction, struct LispCFunction *, IDENTITY);
+SAFECAST_OP(Character, LispIndex, LISP_CHAR_CODE);
+SAFECAST_OP(CFunction, struct LispCFunction *, IDENTITY);
 SAFECAST_OP(Vector, struct LispVector *, IDENTITY);
 SAFECAST_OP(String, struct LispString *, IDENTITY);
 SAFECAST_OP(BitVector, struct LispBitVector *, IDENTITY);

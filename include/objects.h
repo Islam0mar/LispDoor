@@ -79,7 +79,7 @@ const LispEnvPtr LispEnv();
 /* extern uint32_t __flash_end__; */
 /* FORTH_ASSERT(__ram_end__ == __flash_end__, "shit"); */
 #define LISP_NIL ((LispObject)kList)
-#define LISP_T ((LispObject)(kForwarded))
+#define LISP_T ((LispObject)(kCharacter))
 #define LISP_UNBOUND (OBJ_NULL)
 #define LISP_UNBOUNDP(x) (x == LISP_UNBOUND)
 #define LISP_NULL(x) ((x) == LISP_NIL)
@@ -87,9 +87,8 @@ const LispEnvPtr LispEnv();
 typedef enum {
   kStart = 0,
   kList = 1,
-  /* immediate forwarded flag used by GC */
-  kForwarded = 2,
-  kFixNum = 3, /* immediate fixnum */
+  kCharacter = 2, /* immediate character */
+  kFixNum = 3,    /* immediate fixnum */
   kSingleFloat,
   kDoubleFloat,
   kLongFloat,
@@ -98,6 +97,7 @@ typedef enum {
   kBitVector,
   kString,
   kCFunction, /* internal */
+  kForwarded, /* immediate forwarded flag used by GC */
   kGenSym,    /* internal only, no valid lisp object should have this type */
   kVector
 } LispType;
@@ -124,6 +124,13 @@ typedef enum {
 #define LISP_FIXNUM_PLUSP(a) ((LispFixNum)(a) > (LispFixNum)LISP_make_fixnum(0))
 #define LISP_FIXNUM_MINUSP(a) ((LispFixNum)(a) < (LispFixNum)(0))
 #define LISP_FIXNUM(a) (((LispFixNum)(a)) >> 2)
+
+/* Immediate characters:        */
+#define LISP_CHARACTER_TAG kCharacter
+#define LISP_CharacterP(o) (LISP_IMMEDIATE(o) == kCharacter)
+#define LISP_MAKE_CHARACTER(c) \
+  ((LispObject)(((LispFixNum)(c << 2) | LISP_CHARACTER_TAG)))
+#define LISP_CHAR_CODE(obje) (((LispFixNum)(obje)) >> 2)
 
 #define LISP_NumberP(t) (t >= kFixNum && t <= kLastNumber)
 #define LISP_RealP(t) (t >= kFixNum && t < kComplex)
@@ -155,9 +162,14 @@ typedef enum {
 #define LISP_SYMBOL_GENSYMP(sym) (sym->symbol.stype == kSymGenSym)
 #define LISP_SYMBOL_CONSTANTP(sym) (sym->symbol.stype == kSymConstant)
 
+#define LISP_FORWARDEDP(x) ((LISP_IMMEDIATE(x) == 0) && ((x)->d.t ==  kForwarded)))
+#define LISP_SET_FORWARDED(obj_old, obj_new) \
+  obj_old->d.t = kForwarded;                 \
+  obj_old->d.o_new = obj_new;
+#define LISP_FORWARD(obj) (obj->d.o_new)
+
 #define LISP_CFunctionP(x) ((LISP_IMMEDIATE(x) == 0) && (x)->d.t == kCFunction)
-#define LISP_CFUNCTION_SPECIALP(x) \
-  (LISP_CFunctionP(x) && (x)->cfun.f_type == kFunctionSpecial)
+#define LISP_CFUNCTION_SPECIALP(x) ((x)->cfun.f_type == kFunctionSpecial)
 
 #define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) + kList)
 #define LISP_CONS_PTR(x) ((struct LispCons *)((intptr_t)(x)-kList))
@@ -200,6 +212,9 @@ typedef enum {
 struct LispSingleFloat {
   _LISP_HDR;
   float value; /*  singlefloat value  */
+#if ((UINT_MAX) != 0xffffffffu)
+  uint32_t padding; /* for 64 bit system */
+#endif
 };
 
 struct LispDoubleFloat {
@@ -268,6 +283,7 @@ struct LispGenSym {
 */
 struct LispDummy {
   _LISP_HDR;
+  LispObject o_new;
 };
 
 // safe cast operators --------------------------------------------------------
@@ -277,6 +293,7 @@ struct LispDummy {
 SAFECAST_OP_HEADER(Cons, struct LispCons *, LISP_CONS_PTR);
 SAFECAST_OP_HEADER(Symbol, struct LispSymbol *, IDENTITY);
 SAFECAST_OP_HEADER(FixNum, LispFixNum, LISP_FIXNUM);
+SAFECAST_OP_HEADER(Character, LispIndex, LISP_CHAR_CODE);
 SAFECAST_OP_HEADER(CFunction, struct LispCFunction *, IDENTITY);
 SAFECAST_OP_HEADER(Vector, struct LispVector *, IDENTITY);
 SAFECAST_OP_HEADER(String, struct LispString *, IDENTITY);

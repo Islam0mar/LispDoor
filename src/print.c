@@ -6,7 +6,10 @@
  *
  */
 
+/* used for wchar printing */
 #include "print.h"
+
+#include <locale.h>
 
 #include "memorylayout.h"
 
@@ -106,10 +109,15 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
         fprintf(f, "%ld", LISP_FIXNUM(o));
         break;
       }
-      /* case kCharacter: { */
-      /*   fprintf(f,"#\\%d", LISP_CHAR_UTF8_CODE(o)); */
-      /*   break; */
-      /* } */
+      case kCharacter: {
+        if (!setlocale(LC_CTYPE, "")) {
+          LispError(
+              "Can't set the specified locale! "
+              "Check LANG, LC_CTYPE, LC_ALL.\n");
+        }
+        fprintf(f, "#\\%lc", LISP_CHAR_CODE(o));
+        break;
+      }
       case kLongFloat: {
         fprintf(f, "%LF", LISP_LONG_FLOAT(o));
         break;
@@ -128,7 +136,7 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
       }
       case kForwarded: {
         fprintf(f, "{FORWARDED: ");
-        DoPrint(f, (LispObject)((LispFixNum)o & (~0x3)), princ);
+        DoPrint(f, LISP_FORWARD(o), princ);
         fprintf(f, "}");
         break;
       }

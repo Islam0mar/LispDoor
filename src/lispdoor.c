@@ -190,7 +190,7 @@ EVAL_TOP:
     func = EVAL(func, penv);
     penv->frame = *frame;
     arg_list = LISP_CONS_CDR(stack[saved_stack_ptr]);
-    if (LISP_CFUNCTION_SPECIALP(func)) {
+    if (LISP_CFunctionP(func) && LISP_CFUNCTION_SPECIALP(func)) {
       PUSH(arg_list);
       ans = (func->cfun.f)(1);
     } else {
