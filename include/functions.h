@@ -38,7 +38,7 @@ LispObject Sum(LispNArg narg) {
   LispFixNum ans = 0;
   LispIndex i = stack_ptr - narg;
   for (; i < stack_ptr; ++i) {
-    ans += LISP_FIXNUM(stack[i]);
+    ans += ToFixNum(stack[i], "+");
   }
   return LISP_MAKE_FIXNUM(ans);
 }
@@ -84,26 +84,26 @@ LispObject Macro(LispNArg narg) {
   POPN(2);
   return ans;
 }
-/* LispObject sp(LispNArg narg) { */
-/*   LispFixNum i = stack_ptr; */
-/*   /\* Lambda/macro *\/ */
-/*   ArgCount("macro", narg, 0); */
-/*   LispObject v, arg_syms, env, body, ans; */
-/*   /\* build a closure (lambda args body . frame) *\/ */
-/*   printf("\nstack_ptr: %ld\n", stack_ptr); */
-/*   printf("stack: %p\n", stack); */
-/*   printf("stack_b: %p\n", stack_bottom); */
-/*   printf("heap_l: %p\n", heap_limit); */
-/*   printf("heap: %p\n", curr_heap); */
-/*   while (i >= 0) { */
-/*     printf("%ld:", i); */
-/*     LispPrint(stack[i]); */
-/*     printf("\n"); */
-/*     i--; */
-/*   } */
+LispObject Sp(LispNArg narg) {
+  LispFixNum i = stack_ptr;
+  /* Lambda/macro */
+  ArgCount("macro", narg, 0);
+  LispObject v, arg_syms, env, body, ans;
+  /* build a closure (lambda args body . frame) */
+  printf("\nstack_ptr: %ld\n", stack_ptr);
+  printf("stack: %p\n", stack);
+  printf("stack_b: %p\n", stack_bottom);
+  printf("heap_l: %p\n", heap_limit);
+  printf("heap: %p\n", curr_heap);
+  while (i >= 0) {
+    printf("%ld:", i);
+    LispPrint(stdout, stack[i], 0);
+    printf("\n");
+    i--;
+  }
+  return LISP_NIL;
+}
 
-/*   return LISP_NIL; */
-/* } */
 LispObject Quote(LispNArg narg) {
   LispObject ans, v;
   v = POP();

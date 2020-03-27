@@ -11,6 +11,7 @@
 #include "eval.h"
 #include "functions.h"
 #include "gc.h"
+#include "lispdoor_config.h"
 #include "memorylayout.h"
 #include "objects.h"
 #include "print.h"

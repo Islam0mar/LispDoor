@@ -9,22 +9,32 @@
 
 #include "memorylayout.h"
 #include "print.h"
+#include "symboltree.h"
+
+/* if lispobject is forwarded:
+   1. kForwarded is set
+   2. forward pointer is set after type value
+*/
+
+LispIndex *LispNumberOfObjectsAllocated() {
+  static LispIndex objects = 0;
+  return &objects;
+}
 
 /* Data allocation */
 void *GcMalloc(LispIndex num_of_bytes) {
   void *ptr;
   if (curr_heap + num_of_bytes > heap_limit) {
-    LispError("user area overflow.");
-
-    GC();
+    GC(0);
   }
   if (curr_heap + num_of_bytes > heap_limit) {
-    LispError("user area overflow.");
+    LispError("no space to allocate new object.");
   }
   ptr = (void *)curr_heap;
   curr_heap += num_of_bytes;
   curr_heap =
       (Byte *)(((LispFixNum)curr_heap + (ALIGN_BITS - 1)) & -ALIGN_BITS);
+  ++*LispNumberOfObjectsAllocated(); /* better readability */
   return ptr;
 }
 
@@ -34,6 +44,8 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
     case kList:
       obj = (LispObject)GcMalloc(sizeof(struct LispCons));
       return LISP_PTR_CONS(obj);
+    case kCharacter:
+      return LISP_MAKE_CHARACTER(955); /* Immediate character */
     case kFixNum:
       return LISP_MAKE_FIXNUM(0); /* Immediate fixnum */
     case kSingleFloat:
@@ -90,7 +102,7 @@ void *SymMalloc(LispIndex num_of_bytes) {
 
 // collector
 // ------------------------------------------------------------------
-LispObject LispDoRelocate(LispObject o) {
+LispObject LispGcRelocate(LispObject o) {
   LispObject o_new = o;
   LispIndex size = 0;
   if (LISP_UNBOUNDP(o)) {
@@ -99,6 +111,10 @@ LispObject LispDoRelocate(LispObject o) {
   } else {
     LispType t = LISP_TYPE_OF(o);
     switch (t) {
+      case kCharacter:
+      case kFixNum: {
+        break;
+      }
       case kForwarded: {
         o_new = LISP_FORWARD(o);
         break;
@@ -109,9 +125,6 @@ LispObject LispDoRelocate(LispObject o) {
           o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
           LISP_SET_FORWARDED(o, o_new);
         }
-        break;
-      }
-      case kFixNum: {
         break;
       }
       case kSingleFloat: {
@@ -130,7 +143,7 @@ LispObject LispDoRelocate(LispObject o) {
         break;
       }
       case kCFunction: {
-        if (o->cfun.f_type == kFunctionSpecial) {
+        if (LISP_CFUNCTION_SPECIALP(o)) {
           o_new = LispMakeCFunctionSpecial(o->cfun.name, o->cfun.f);
         } else {
           o_new = LispMakeCFunction(o->cfun.name, o->cfun.f);
@@ -140,7 +153,7 @@ LispObject LispDoRelocate(LispObject o) {
       }
       case kBitVector: {
         size = o->bit_vector.size;
-        o_new = LispMakeBitVector(size);
+        o_new = LispMakeBitVectorExactSize(size);
         memcpy(o_new->bit_vector.self, o->bit_vector.self, size);
         LISP_SET_FORWARDED(o, o_new);
         break;
@@ -149,10 +162,10 @@ LispObject LispDoRelocate(LispObject o) {
         size = o->vector.size;
         o_new = LispMakeVector(size);
         o_new->vector.fillp = o->vector.fillp;
-        LISP_SET_FORWARDED(o, o_new);
+        LISP_SET_FORWARDED(o, o_new); /* o->vector.self won't be touched */
         LispIndex i = 0;
         for (i = 0; i < size; ++i) {
-          o_new->vector.self[i] = LispDoRelocate(o->vector.self[i]);
+          o_new->vector.self[i] = LispGcRelocate(o->vector.self[i]);
         }
         break;
       }
@@ -161,29 +174,37 @@ LispObject LispDoRelocate(LispObject o) {
         LISP_SET_FORWARDED(o, o_new);
         break;
       }
-
       case kList: {
-        LispObject a, d, nc, first, *pcdr;
+        LispObject a, d, nc, *pcdr;
+        bool forwarded_p = false;
         // iterative implementation allows arbitrarily long cons chains
-        pcdr = &first;
+        pcdr = &o_new;
         do {
-          /* self referring case */
-          if ((a = LISP_CONS_CAR(o)) == LISP_UNBOUND) {
+          /* forwarded cons */
+          a = LISP_CONS_CAR(o);
+          if (a == LISP_UNBOUND) {
+            LispPrint(stdout, o, 0);
+            printf("\n");
             d = LISP_CONS_CDR(o);
+            forwarded_p = true;
             break;
           }
           *pcdr = nc = MakeCons();
           d = LISP_CONS_CDR(o);
           LISP_CONS_CAR(o) = LISP_UNBOUND;
           LISP_CONS_CDR(o) = nc;
-          LISP_CONS_CAR(nc) = LispDoRelocate(a);
+          LISP_CONS_CAR(nc) = LispGcRelocate(a);
           pcdr = &LISP_CONS_CDR(nc);
           o = d;
         } while (LISP_ConsP(o));
-        o_new = d;
+        if (!forwarded_p) {
+          d = LispGcRelocate(d);
+        }
+        *pcdr = d;
+        break;
       }
       default:
-        LispTypeError("object_copy", "type within known range",
+        LispTypeError("LispGcRelocate", "type within known range",
                       LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
         assert(false);
     }
@@ -191,53 +212,62 @@ LispObject LispDoRelocate(LispObject o) {
   return o_new;
 }
 
-LispObject GcRelocate(LispObject v) {
-  LispObject a, d, nc, first, *pcdr;
-
-  if (!LISP_ConsP(v)) return v;
-  if (LISP_CONS_CAR(v) == LISP_UNBOUND) return LISP_CONS_CDR(v);
-  nc = MakeCons();
-  a = LISP_CONS_CAR(v);
-  d = LISP_CONS_CDR(v);
-  LISP_CONS_CAR(v) = LISP_UNBOUND;
-  LISP_CONS_CDR(v) = nc;
-  LISP_CONS_CAR(nc) = GcRelocate(a);
-  LISP_CONS_CDR(nc) = GcRelocate(d);
-  return nc;
-}
-
-void TraceGlobals() {
-  struct LispSymbol *root = (struct LispSymbol *)LispEnv()->symbol_table;
+void TraceGlobals(struct LispSymbol *root) {
   while (root != NULL) {
-    root->value = GcRelocate(root->value);
+    /* dfs */
+    root->value = LispGcRelocate(root->value);
     TraceGlobals(root->left);
     root = root->right;
   }
 }
-/* TODO */
-void GC(void) {
-  int grew = 0;
+
+LispObject GC(LispNArg narg) {
   Byte *temp;
   LispIndex i;
   ReadState *rs;
+  LispObject *items;
 
   curr_heap = to_space;
-  uintptr_t lim = curr_heap + HEAP_SIZE - sizeof(union LispUnion);
-
+  heap_limit = curr_heap + HEAP_SIZE;
+  /* trace number of objects allocated */
+  *LispNumberOfObjectsAllocated() = 0;
+  /* 1. stack values */
   for (i = 0; i < stack_ptr; i++) {
-    stack[i] = GcRelocate(stack[i]);
+    stack[i] = LispGcRelocate(stack[i]);
   }
-  TraceGlobals();
-  // #ifdef VERBOSEGC
-  printf("gc found %ld/%ld live conses\n", (curr_heap - to_space) / 8,
-         HEAP_SIZE / 8);
-  // #endif
+  /* 2. symbol table */
+  TraceGlobals((struct LispSymbol *)LispEnv()->symbol_table);
+  /* 3. labels */
+  rs = read_state;
+  while (rs != NULL) {
+    items = rs->exprs.items;
+    LabelTableRelocate(&rs->exprs);
+    for (i = 0; i < rs->exprs.n; i++) {
+      rs->exprs.items[i] = LispGcRelocate(items[i]);
+    }
+    items = rs->labels.items;
+    LabelTableRelocate(&rs->labels);
+    for (i = 0; i < rs->labels.n; i++) {
+      rs->labels.items[i] = LispGcRelocate(items[i]);
+    }
+    rs = rs->prev;
+  }
+  /* 4. print_conses */
+  LabelTableRelocate(&print_conses);
+  /* 5. cons_flag */
+  cons_flags = LispGcRelocate(cons_flags);
+
+  printf("gc: found %lu live objects occupy %ld/%lu bytes.\n",
+         *LispNumberOfObjectsAllocated(),
+         (LispIndex)curr_heap - (LispIndex)to_space, HEAP_SIZE);
   temp = to_space;
   to_space = from_space;
   from_space = temp;
 
-  // fixme:
-  if ((uintptr_t)curr_heap > lim) {
-    LispError("object space overflow.");
+  /* All data was live */
+  if ((uintptr_t)curr_heap > (uintptr_t)heap_limit) {
+    LispError("objects space overflow.");
   }
+
+  return LISP_T;
 }

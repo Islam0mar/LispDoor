@@ -11,11 +11,10 @@
 #include "objects.h"
 
 /* Data allocation */
-void GC();
+LispObject GC(LispNArg narg);
 void *GcMalloc(LispIndex num_of_bytes);
 LispObject LispAllocObject(LispType t, LispIndex extra_size);
 void *SymMalloc(LispIndex num_of_bytes);
-LispObject GcRrelocate(LispObject v);
-void TraceGlobals();
+LispIndex *LispNumberOfObjectsAllocated();
 
 #endif /* GC_H */

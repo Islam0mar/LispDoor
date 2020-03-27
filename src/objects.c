@@ -107,6 +107,13 @@ LispObject LispMakeBitVector(LispIndex n) {
   bv->bit_vector.size = sz;
   return bv;
 }
+LispObject LispMakeBitVectorExactSize(LispIndex n) {
+  LispObject bv;
+  LispIndex sz = n;
+  bv = LispAllocObject(kBitVector, sz);
+  bv->bit_vector.size = sz;
+  return bv;
+}
 
 void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c) {
   uint32_t *b = o->bit_vector.self;

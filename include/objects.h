@@ -79,7 +79,7 @@ const LispEnvPtr LispEnv();
 /* extern uint32_t __flash_end__; */
 /* FORTH_ASSERT(__ram_end__ == __flash_end__, "shit"); */
 #define LISP_NIL ((LispObject)kList)
-#define LISP_T ((LispObject)(kCharacter))
+#define LISP_T ((LispObject)(kCharacter)) /* '\0' char isn't supported */
 #define LISP_UNBOUND (OBJ_NULL)
 #define LISP_UNBOUNDP(x) (x == LISP_UNBOUND)
 #define LISP_NULL(x) ((x) == LISP_NIL)
@@ -214,6 +214,8 @@ struct LispSingleFloat {
   float value; /*  singlefloat value  */
 #if ((UINT_MAX) != 0xffffffffu)
   uint32_t padding; /* for 64 bit system */
+  /* as we use the content after type */
+  /* for storing forward pointer */
 #endif
 };
 
@@ -321,6 +323,7 @@ union LispUnion {
   struct LispDummy d;                  /*  dummy  */
 };
 
+typedef struct LispDummy LispSmallestStruct;
 #define MAKE_FUNC_HEADER(name, union_t, c_type) \
   LispObject LispMake##name(c_type val)
 
@@ -338,6 +341,7 @@ LispObject LispMakeString(char *str);
 /* bit-vector */
 LispObject LispBitVectorResize(LispObject bv, LispIndex n);
 LispObject LispMakeBitVector(LispIndex n);
+LispObject LispMakeBitVectorExactSize(LispIndex n);
 LispObject LispMakeInitializedBitVector(LispIndex n, int val);
 void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c);
 uint32_t LispBitVectorGet(LispObject o, uint32_t n);

@@ -220,10 +220,12 @@ void LispInit(void) {
   LispEnv()->nvalues = 0;
 
   cons_flags =
-      LispMakeInitializedBitVector(HEAP_SIZE / sizeof(struct LispCons), 0);
+      LispMakeInitializedBitVector(HEAP_SIZE / sizeof(LispSmallestStruct), 0);
   LabelTableInit(&print_conses, 32);
 
   LispObject o;
+
+  LISP_SET_FUNCTION("gc", GC);
 
   LISP_SET_CONSTANT_VALUE("nil", LISP_NIL);
   LISP_SET_CONSTANT_VALUE("t", LISP_T);
@@ -240,7 +242,9 @@ void LispInit(void) {
   LISP_SET_SPECIAL("while", While);
   LISP_SET_SPECIAL("progn", Progn);
   LISP_SET_FUNCTION("set", Set);
+  LISP_SET_FUNCTION("+", Sum);
   LISP_SET_FUNCTION("eq", Eq);
+  LISP_SET_FUNCTION("sp", Sp);
   LISP_SET_FUNCTION("boundp", Boundp);
   LISP_SET_FUNCTION("cons", LispCons);
   LISP_SET_FUNCTION("car", LispCar);
@@ -277,9 +281,10 @@ int main(int argc, char *argv[]) {
   /*   } */
   /*   goto repl; */
   /* } */
-  printf(
-      "Welcome to femtoLisp "
-      "----------------------------------------------------------\n");
+  printf("LispDoor Version: %s\n", LISP_DOOR_VERSION_STRING);
+  printf("%lu live objects occupy %ld/%lu bytes.\n\n",
+         *LispNumberOfObjectsAllocated(),
+         (LispIndex)curr_heap - (LispIndex)from_space, HEAP_SIZE);
   setjmp(LispEnv()->top_level);
 
   while (1) {

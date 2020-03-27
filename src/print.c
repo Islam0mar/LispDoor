@@ -95,7 +95,7 @@ static void PrintSymbol(FILE *f, char *name) {
 
 static void DoPrint(FILE *f, LispObject o, int princ) {
   LispObject cd;
-  int label;
+  LispFixNum label;
   char *name;
   if (LISP_UNBOUNDP(o)) {
     fprintf(f, "unbound");
@@ -134,6 +134,20 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
         fprintf(f, "\"%.*s\"", (int)o->string.size, o->string.self);
         break;
       }
+      case kBitVector: {
+        fprintf(f, "#b(");
+        label = 0;
+        for (label = 0;;) {
+          fprintf(f, "%#x", o->bit_vector.self[label]);
+          if (++label < o->bit_vector.size) {
+            fprintf(f, " ");
+          } else {
+            break;
+          }
+        }
+        fprintf(f, ")");
+        break;
+      }
       case kForwarded: {
         fprintf(f, "{FORWARDED: ");
         DoPrint(f, LISP_FORWARD(o), princ);
@@ -160,10 +174,10 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
       case kList: {
         if ((label = LabelTableLookUp(&print_conses, o)) != NOTFOUND) {
           if (!MARKED_P(o)) {
-            fprintf(f, "#%d#", label);
+            fprintf(f, "#%ld#", label);
             break;
           }
-          fprintf(f, "#%d=", label);
+          fprintf(f, "#%ld=", label);
         }
         fprintf(f, "(");
         while (1) {

@@ -17,6 +17,7 @@ void LabelTableClear(LabelTable *t);
 void LabelTableInsert(LabelTable *t, LispObject item);
 LispFixNum LabelTableLookUp(LabelTable *t, LispObject item);
 void LabelTableAdjoin(LabelTable *t, LispObject item);
+void LabelTableRelocate(LabelTable *t);
 
 static inline void ArgCount(char *fname, LispIndex nargs, LispIndex c) {
   if (nargs != c) {

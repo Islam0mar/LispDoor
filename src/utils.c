@@ -35,6 +35,10 @@ void LabelTableInit(LabelTable *t, LispIndex n) {
   t->items = (LispObject *)GcMalloc(n * sizeof(LispObject));
 }
 
+void LabelTableRelocate(LabelTable *t) {
+  t->items = (LispObject *)GcMalloc(t->maxsize * sizeof(LispObject));
+}
+
 void LabelTableClear(LabelTable *t) { t->n = 0; }
 
 void LabelTableInsert(LabelTable *t, LispObject item) {
@@ -66,5 +70,3 @@ void LabelTableAdjoin(LabelTable *t, LispObject item) {
     LabelTableInsert(t, item);
   }
 }
-
-
