@@ -1,6 +1,6 @@
 # LispDoor
 
-This is an **under construction** lisp1-dialect which is intended to be used on a microcontroller.
+This is a working **under construction** lisp1-dialect which is intended to be used on a microcontroller.
 
 Forked from [FemtoLisp](https://github.com/JeffBezanson/femtolisp) and [ECL](https://gitlab.com/embeddable-common-lisp/ecl).
 
@@ -11,7 +11,7 @@ Forked from [FemtoLisp](https://github.com/JeffBezanson/femtolisp) and [ECL](htt
 
 # TODO:
 - [x] GC complete
-- [ ] complete primitive function
+- [x] complete primitive functions
 - [ ] support string,vector,bitvector
 - [ ] add tests
 - [ ] add HAL functions

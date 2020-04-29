@@ -32,62 +32,46 @@ static inline LispObject ConsNth(LispIndex n, LispObject lst) {
   lst = LISP_CONS_CAR(lst);
   return lst;
 }
+LispObject LispApply(LispObject fun, LispObject arg_list);
 
 // Builtin functions
 // -------------------------------------------------------------
-LispObject Sum(LispNArg narg) {
-  LispFixNum ans = 0;
-  LispIndex i = stack_ptr - narg;
-  for (; i < stack_ptr; ++i) {
-    ans += ToFixNum(stack[i], "+");
-  }
-  return LISP_MAKE_FIXNUM(ans);
-}
-LispObject Label(LispNArg narg) {
-  LispObject v, *pv, *body;
+LispObject LdLabel(LispNArg narg) {
+  LispObject v, pv, body;
+  ArgCount("label", narg, 1);
   /* the syntax of label is (label name (lambda args body ...)) */
   v = POP();
-  PUSH(LISP_CONS_CAR(v)); /* name */
-  pv = &stack[stack_ptr - 1];
-  PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v))); /* function */
-  body = &stack[stack_ptr - 1];
-  *body = EVAL(*body, LispEnv()); /* evaluate lambda */
-  v = cons_(LispMakeSymbol("label"), cons(*pv, cons(*body, LISP_NIL)));
+  pv = LISP_CONS_CAR(v);                  /* name */
+  body = LISP_CONS_CAR(LISP_CONS_CDR(v)); /* function */
+  body = EVAL(body, LispEnv());           /* evaluate lambda */
+  v = cons_(LispMakeSymbol("label"), cons(pv, cons(body, LISP_NIL)));
   return v;
 }
-LispObject Lambda(LispNArg narg) {
+LispObject LdLambda(LispNArg narg) {
   LispObject v, arg_syms, body, ans;
+  ArgCount("lambda", narg, 1);
   /* build a closure (lambda args body . frame) */
   v = POP();
-  PUSH(LISP_CONS_CAR(v));
-  arg_syms = stack[stack_ptr - 1];
-  PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
-  body = stack[stack_ptr - 1];
+  arg_syms = LISP_CONS_CAR(v);
+  body = LISP_CONS_CAR(LISP_CONS_CDR(v));
   ans = cons_(LispMakeSymbol("lambda"),
               cons(arg_syms, cons(body, LispEnv()->frame)));
-
-  POPN(2);
   return ans;
 }
-LispObject Macro(LispNArg narg) {
+LispObject LdMacro(LispNArg narg) {
   LispObject v, arg_syms, body, ans;
+  ArgCount("macro", narg, 1);
   /* build a closure (lambda args body . frame) */
   v = POP();
-  PUSH(LISP_CONS_CAR(v));
-  arg_syms = stack[stack_ptr - 1];
-  PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
-  body = stack[stack_ptr - 1];
+  arg_syms = LISP_CONS_CAR(v);
+  body = LISP_CONS_CAR(LISP_CONS_CDR(v));
   ans = cons_(LispMakeSymbol("macro"),
               cons(arg_syms, cons(body, LispEnv()->frame)));
-
-  POPN(2);
   return ans;
 }
-LispObject Sp(LispNArg narg) {
+LispObject LdSp(LispNArg narg) {
   LispFixNum i = stack_ptr;
-  /* Lambda/macro */
-  ArgCount("macro", narg, 0);
-  /* build a closure (lambda args body . frame) */
+  ArgCount("sp", narg, 0);
   printf("\nstack_ptr: %ld\n", stack_ptr);
   printf("stack: %p\n", stack);
   printf("stack_b: %p\n", stack_bottom);
@@ -102,7 +86,7 @@ LispObject Sp(LispNArg narg) {
   return LISP_NIL;
 }
 
-LispObject Quote(LispNArg narg) {
+LispObject LdQuote(LispNArg narg) {
   LispObject ans, v;
   v = POP();
   if (!LISP_ConsP(v)) {
@@ -111,7 +95,7 @@ LispObject Quote(LispNArg narg) {
   ans = LISP_CONS_CAR(v);
   return ans;
 }
-LispObject If(LispNArg narg) {
+LispObject LdIf(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   LispObject ans, cond;
   PUSH(LispEnv()->frame);
@@ -128,7 +112,7 @@ LispObject If(LispNArg narg) {
   POPN(2);
   return ans;
 }
-LispObject Cond(LispNArg narg) {
+LispObject LdCond(LispNArg narg) {
   /* (cond   (test1    action1) */
   /*    (test2    action2) */
   /*    ... */
@@ -162,7 +146,7 @@ LispObject Cond(LispNArg narg) {
   }
   return ans;
 }
-LispObject And(LispNArg narg) {
+LispObject LdAnd(LispNArg narg) {
   LispObject ans = LISP_T, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
@@ -180,7 +164,7 @@ LispObject And(LispNArg narg) {
   }
   return ans;
 }
-LispObject Or(LispNArg narg) {
+LispObject LdOr(LispNArg narg) {
   LispObject ans = LISP_NIL, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
@@ -198,7 +182,7 @@ LispObject Or(LispNArg narg) {
   }
   return ans;
 }
-LispObject While(LispNArg narg) {
+LispObject LdWhile(LispNArg narg) {
   /* (while test body ...) */
   LispObject ans = LISP_NIL, *pv, *frame, *body, *cond;
   PUSH(LispEnv()->frame);
@@ -221,7 +205,7 @@ LispObject While(LispNArg narg) {
   ans = *pv;
   return ans;
 }
-LispObject Progn(LispNArg narg) {
+LispObject LdProgn(LispNArg narg) {
   /* return last arg */
   LispObject ans = LISP_NIL, *frame, *body;
   PUSH(LispEnv()->frame);
@@ -239,14 +223,14 @@ LispObject Progn(LispNArg narg) {
   return ans;
 }
 /* normal functions  */
-LispObject Eq(LispNArg narg) {
+LispObject LdEq(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("eq", narg, 2);
   POPN(2);
   return LISP_MAKE_BOOL(stack[stack_ptr] == stack[stack_ptr + 1]);
 }
 
-LispObject Set(LispNArg narg) {
+LispObject LdSet(LispNArg narg) {
   LispObject ans, v, e, bind;
   ArgCount("set", narg, 2);
   bool done = false;
@@ -272,33 +256,248 @@ LispObject Set(LispNArg narg) {
 
   return ans;
 }
-LispObject Boundp(LispNArg narg) {
+LispObject LdBoundp(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("boundp", narg, 1);
   POPN(1);
   return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr]));
 }
-LispObject LispCons(LispNArg narg) {
+LispObject LdCons(LispNArg narg) {
   ArgCount("cons", narg, 2);
   LispObject c = MakeCons();
   LISP_CONS_CAR(c) = stack[stack_ptr - 2];
   LISP_CONS_CDR(c) = stack[stack_ptr - 1];
   return c;
 }
-LispObject LispCar(LispNArg narg) {
+LispObject LdCar(LispNArg narg) {
   ArgCount("car", narg, 1);
-  if (!LISP_ConsP(stack[stack_ptr - 1])) {
-    LispTypeError("car", "cons", stack[stack_ptr - 1]);
-  };
-  return LISP_CONS_CAR(stack[stack_ptr - 1]);
+  return ToCons(stack[stack_ptr - 1], "car")->car;
 }
 
-LispObject LispCdr(LispNArg narg) {
+LispObject LdCdr(LispNArg narg) {
   ArgCount("cdr", narg, 1);
-  /* if (!LISP_ConsP(stack[stack_ptr - 1])) { */
-  /*   LispTypeError("cdr", "cons", stack[stack_ptr - 1]); */
-  /* }; */
   return ToCons(stack[stack_ptr - 1], "cdr")->cdr;
+}
+
+LispObject LdRPlacA(LispNArg narg) {
+  ArgCount("rplaca", narg, 2);
+  ToCons(stack[stack_ptr - 2], "rplaca")->car = stack[stack_ptr - 1];
+  return stack[stack_ptr - 2];
+}
+LispObject LdRPlacD(LispNArg narg) {
+  ArgCount("rplacd", narg, 2);
+  ToCons(stack[stack_ptr - 2], "rplacd")->cdr = stack[stack_ptr - 1];
+  return stack[stack_ptr - 2];
+}
+LispObject LdAtom(LispNArg narg) {
+  ArgCount("atom", narg, 1);
+  return LISP_MAKE_BOOL(LISP_ATOM(stack[stack_ptr - 1]));
+}
+LispObject LdConsP(LispNArg narg) {
+  ArgCount("consp", narg, 1);
+  return LISP_MAKE_BOOL(LISP_ConsP(stack[stack_ptr - 1]));
+}
+LispObject LdSymbolP(LispNArg narg) {
+  ArgCount("symbolp", narg, 1);
+  return LISP_MAKE_BOOL(LISP_SymbolP(stack[stack_ptr - 1]));
+}
+LispObject LdNumberP(LispNArg narg) {
+  ArgCount("numberp", narg, 1);
+  return LISP_MAKE_BOOL(LISP_NumberP(stack[stack_ptr - 1]));
+}
+LispObject LdFixNumP(LispNArg narg) {
+  ArgCount("fixnump", narg, 1);
+  return LISP_MAKE_BOOL(LISP_FixNumP(stack[stack_ptr - 1]));
+}
+LispObject LdAdd(LispNArg narg) {
+  LispFixNum ans = 0;
+  LispIndex i = stack_ptr - narg;
+  for (; i < stack_ptr; ++i) {
+    ans += ToFixNum(stack[i], "+");
+  }
+  return LISP_MAKE_FIXNUM(ans);
+}
+LispObject LdSub(LispNArg narg) {
+  if (narg < 1) {
+    LispError("-: error: too few arguments\n");
+  }
+  LispIndex i = stack_ptr - narg;
+  LispFixNum ans = (narg == 1) ? 0 : ToFixNum(stack[i++], "-");
+  for (; i < stack_ptr; ++i) {
+    ans -= ToFixNum(stack[i], "-");
+  }
+  return LISP_MAKE_FIXNUM(ans);
+}
+LispObject LdMul(LispNArg narg) {
+  LispIndex i = stack_ptr - narg;
+  LispFixNum ans = 1;
+  for (; i < stack_ptr; ++i) {
+    ans *= ToFixNum(stack[i], "*");
+  }
+  return LISP_MAKE_FIXNUM(ans);
+}
+LispObject LdDiv(LispNArg narg) {
+  if (narg < 1) {
+    LispError("-: error: too few arguments\n");
+  }
+  LispIndex i = stack_ptr - narg;
+  LispFixNum ans = (narg == 1) ? 1 : ToFixNum(stack[i++], "/");
+  LispFixNum tmp;
+  for (; i < stack_ptr; ++i) {
+    tmp = ToFixNum(stack[i], "*");
+    if (tmp == 0) {
+      LispError("/: error: division by zero\n");
+    }
+    ans /= tmp;
+  }
+  return LISP_MAKE_FIXNUM(ans);
+}
+LispObject LdLt(LispNArg narg) {
+  ArgCount("<", narg, 2);
+  // this implements generic comparison for all atoms
+  // strange comparisons (for example with builtins) are resolved
+  // arbitrarily but consistently.
+  // ordering: cons < builtin < number < symbol
+  LispObject o1, o2, ans = LISP_NIL;
+  o1 = stack[stack_ptr - 2];
+  o2 = stack[stack_ptr - 1];
+  if (LISP_TYPE_OF(o1) != LISP_TYPE_OF(o2)) {
+    ans = ((LISP_TYPE_OF(o1) < LISP_TYPE_OF(o2)) ? LISP_T : LISP_NIL);
+  } else {
+    switch (LISP_TYPE_OF(o1)) {
+      case kList: {
+        LispError("<: error: expected number type or symbol\n");
+        break;
+      }
+      case kCharacter:
+      case kFixNum: {
+        ans = LISP_MAKE_BOOL(o1 < o2);
+        break;
+      }
+      case kSingleFloat: {
+        ans = LISP_MAKE_BOOL(o1->single_float.value < o2->single_float.value);
+        break;
+      }
+      case kDoubleFloat: {
+        ans = LISP_MAKE_BOOL(o1->double_float.value < o2->double_float.value);
+        break;
+      }
+      case kLongFloat: {
+        ans = LISP_MAKE_BOOL(o1->long_float.value < o2->long_float.value);
+        break;
+      }
+      case kSymbol: {
+        ans = LISP_MAKE_BOOL(strcmp(o1->symbol.name, o2->symbol.name));
+        break;
+      }
+
+      case kCFunction: {
+        ans = LISP_MAKE_BOOL(strcmp(o1->cfun.name, o2->cfun.name));
+        break;
+      }
+      case kBitVector: {
+        LispError("<: error: expected number type or symbol\n");
+        break;
+      }
+      case kString: {
+        ans = LISP_MAKE_BOOL(strcmp(o1->string.self, o2->string.self));
+        break;
+      }
+      case kGenSym: {
+        ans = LISP_MAKE_BOOL(o1->gen_sym.id < o2->gen_sym.id);
+        break;
+      }
+      case kVector: {
+        LispError("<: error: expected number type or symbol\n");
+        break;
+      }
+      default:
+        printf("\ttype = %d\n", LISP_TYPE_OF(o1));
+        LispError("alloc botch.\n");
+        break;
+    }
+  }
+  return ans;
+}
+
+LispObject LdNot(LispNArg narg) {
+  ArgCount("fixnump", narg, 1);
+  return LISP_MAKE_BOOL(stack[stack_ptr - 1] == LISP_NIL);
+}
+LispObject LdEval(LispNArg narg) {
+  ArgCount("eval", narg, 1);
+  return EVAL(stack[stack_ptr - 1], LispEnv());
+}
+LispObject LdPrint(LispNArg narg) {
+  ArgCount("print", narg, 1);
+  LispIndex i = stack_ptr - narg;
+  for (; i < stack_ptr; ++i) {
+    LispPrint(stdout, stack[i], 0);
+  }
+  fprintf(stdout, "\n");
+  return LISP_NIL;
+}
+LispObject LdPrinc(LispNArg narg) {
+  ArgCount("princ", narg, 1);
+  LispIndex i = stack_ptr - narg;
+  for (; i < stack_ptr; ++i) {
+    LispPrint(stdout, stack[i], 1);
+  }
+  fprintf(stdout, "\n");
+  return LISP_NIL;
+}
+LispObject LdRead(LispNArg narg) {
+  ArgCount("read", narg, 0);
+  return ReadSexpr(stdin);
+}
+LispObject LdLoad(LispNArg narg) {
+  ArgCount("load", narg, 1);
+  return LoadFile(ToSymbol(stack[stack_ptr - 1], "load")->name);
+}
+LispObject LdExit(LispNArg narg) {
+  ArgCount("exit", narg, 0);
+  exit(0);
+  return LISP_NIL;
+}
+LispObject LdError(LispNArg narg) {
+  LispIndex i = stack_ptr - narg;
+  for (; i < stack_ptr; ++i) {
+    LispPrint(stderr, stack[i], 1);
+  }
+  LispError("\n");
+  return LISP_NIL;
+}
+LispObject LdProg1(LispNArg narg) {
+  if (narg < 1) {
+    LispError("prog1: error: too few arguments\n");
+  }
+  return stack[stack_ptr - narg];
+}
+LispObject LdAssoc(LispNArg narg) {
+  ArgCount("assoc", narg, 2);
+  LispObject bind, v = stack[stack_ptr - 2], item = stack[stack_ptr - 1];
+  LispObject ans = LISP_NIL;
+  while (LISP_ConsP(v)) {
+    bind = LISP_CONS_CAR(v);
+    if (LISP_ConsP(bind) && LISP_CONS_CAR(bind) == item) {
+      ans = bind;
+      break;
+    }
+    v = LISP_CONS_CDR(v);
+  }
+  return ans;
+}
+LispObject LdApply(LispNArg narg) {
+  ArgCount("apply", narg, 2);
+  LispObject v = stack[stack_ptr - 1], f = stack[stack_ptr - 2];
+  POPN(2);
+  if (LISP_CFunctionP(f) && LISP_CFUNCTION_SPECIALP(f)) {
+    LispError(
+        "apply: error: cannot apply special operator "
+        "%s\n",
+        f->cfun.name);
+  }
+  return LispApply(f, v);
 }
 
 #endif /* FUNCTIONS_H */

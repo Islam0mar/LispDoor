@@ -9,8 +9,7 @@
 #include "lispdoor.h"
 
 LispObject LispApply(LispObject fun, LispObject arg_list) {
-  LispObject v, ans, *arg_syms, sym, *body, *frame, frame_aux1, frame_aux2,
-      *rest, label;
+  LispObject v, ans, *arg_syms, sym, *body, *frame, *rest, label;
   LispFixNum saved_stack_ptr = stack_ptr, nargs;
   LispEnvPtr penv = LispEnv();
   /* protect from GC */
@@ -22,7 +21,6 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
 
   /* builtin func/special */
   if (LISP_CFunctionP(fun)) {
-    stack[saved_stack_ptr + 1] = fun;
     v = arg_list;
     /* evaluate argument list, placing arguments on stack */
     while (LISP_ConsP(v)) {
@@ -59,22 +57,11 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
     body = &stack[stack_ptr - 1];
     *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
-    if (LISP_ConsP(*frame)) {
-      frame_aux2 = frame_aux1 = *frame;
-      while (LISP_ConsP(frame_aux1)) {
-        frame_aux2 = frame_aux1;
-        frame_aux1 = LISP_CONS_CDR(frame_aux1);
-      }
-      LISP_CONS_CDR(frame_aux2) = stack[saved_stack_ptr];
-    } else {
-      *frame = stack[saved_stack_ptr];
-    }
-
     if (label_p) {
       /* (label name (lambda ...)) */
-      PUSH(LISP_CONS_CAR(LISP_CONS_CDR(label)));                /* name */
-      PUSH(LISP_CONS_CAR(LISP_CONS_CDR(LISP_CONS_CDR(label)))); /* lambda */
-      *frame = cons_(cons(stack[stack_ptr - 2], stack[stack_ptr - 1]), *frame);
+      /* name */
+      /* lambda */
+      *frame = cons_(cons(LISP_CONS_CAR(LISP_CONS_CDR(label)), label), *frame);
       /* refetch arg_list */
       arg_list = stack[saved_stack_ptr + 2];
     }
@@ -97,13 +84,11 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
         v = EVAL(v, penv);
         penv->frame = stack[saved_stack_ptr];
       }
-      PUSH(v);
       *frame = cons_(cons(sym, v), *frame);
       *arg_syms = LISP_CONS_CDR(*arg_syms);
       v = stack[saved_stack_ptr + 2] =
           LISP_CONS_CDR(stack[saved_stack_ptr + 2]);
     }
-
     /* rest args */
     if (!LISP_NULL(*arg_syms)) {
       if (LISP_SymbolP(*arg_syms)) {
@@ -121,13 +106,12 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
             v = LISP_CONS_CAR(v);
             v = EVAL(v, penv);
             penv->frame = stack[saved_stack_ptr]; /* old_frame */
-            PUSH(v);
-            v = cons_(stack[stack_ptr - 1], LISP_NIL);
-            POPN(1);
-            if (LISP_ConsP(*rest))
+            v = cons_(v, LISP_NIL);
+            if (LISP_ConsP(*rest)) {
               LISP_CONS_CDR(*rest) = v;
-            else
+            } else {
               stack[stack_ptr - 2] = v;
+            }
             *rest = v;
             v = stack[saved_stack_ptr + 2] =
                 LISP_CONS_CDR(stack[saved_stack_ptr + 2]);
@@ -138,7 +122,6 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
         LispError("apply: error: too few arguments\n");
       }
     }
-
     penv->frame = *frame;
     ans = EVAL(*body, penv);
     penv->frame = stack[saved_stack_ptr];
@@ -151,6 +134,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     LispTypeError("apply", "lambda, macro, label or builtin", fun);
     ans = LISP_NIL;
   }
+  penv->frame = stack[saved_stack_ptr];
   stack_ptr = saved_stack_ptr;
   return ans;
 }
@@ -167,6 +151,7 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
   if (LISP_SymbolP(expr)) {
     /* Symbol */
     v = *frame;
+
     while (LISP_ConsP(v)) {
       bind = LISP_CONS_CAR(v);
       if (LISP_ConsP(bind) && LISP_CONS_CAR(bind) == expr) {
@@ -175,6 +160,7 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
       }
       v = LISP_CONS_CDR(v);
     }
+
     if (LISP_UNBOUNDP(ans)) {
       ans = expr->symbol.value;
     }
@@ -188,6 +174,7 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
     /* Apply function */
     func = EVAL(func, penv);
     penv->frame = *frame;
+
     arg_list = LISP_CONS_CDR(stack[saved_stack_ptr]);
     if (LISP_CFunctionP(func) && LISP_CFUNCTION_SPECIALP(func)) {
       PUSH(arg_list);
@@ -225,26 +212,49 @@ void LispInit(void) {
   LISP_SET_FUNCTION("gc", GC);
   LISP_SET_CONSTANT_VALUE("nil", LISP_NIL);
   LISP_SET_CONSTANT_VALUE("t", LISP_T);
-  LISP_SET_SPECIAL("lambda", Lambda);
-  LISP_SET_SPECIAL("macro", Macro);
-  LISP_SET_SPECIAL("quote", Quote);
-  LISP_SET_SPECIAL("'", Quote);
-  LISP_SET_SPECIAL("label", Label);
-  LISP_SET_SPECIAL("if", If);
-  LISP_SET_SPECIAL("cond", Cond);
-  LISP_SET_SPECIAL("and", And);
-  LISP_SET_SPECIAL("or", Or);
-  LISP_SET_SPECIAL("while", While);
-  LISP_SET_SPECIAL("progn", Progn);
-  LISP_SET_FUNCTION("set", Set);
-  LISP_SET_FUNCTION("+", Sum);
-  LISP_SET_FUNCTION("eq", Eq);
-  LISP_SET_FUNCTION("sp", Sp);
-  LISP_SET_FUNCTION("boundp", Boundp);
-  LISP_SET_FUNCTION("cons", LispCons);
-  LISP_SET_FUNCTION("car", LispCar);
-  LISP_SET_FUNCTION("cdr", LispCdr);
-  LISP_SET_FUNCTION("gensym", LispMakeGenSym);
+
+  LISP_SET_SPECIAL("quote", LdQuote);
+  LISP_SET_SPECIAL("macro", LdMacro);
+  LISP_SET_SPECIAL("lambda", LdLambda);
+  LISP_SET_SPECIAL("label", LdLabel);
+  LISP_SET_SPECIAL("if", LdIf);
+  LISP_SET_SPECIAL("cond", LdCond);
+  LISP_SET_SPECIAL("and", LdAnd);
+  LISP_SET_SPECIAL("or", LdOr);
+  LISP_SET_SPECIAL("while", LdWhile);
+  LISP_SET_SPECIAL("progn", LdProgn);
+  LISP_SET_FUNCTION("set", LdSet);
+  LISP_SET_FUNCTION("boundp", LdBoundp);
+  LISP_SET_FUNCTION("eq", LdEq);
+  LISP_SET_FUNCTION("cons", LdCons);
+  LISP_SET_FUNCTION("car", LdCar);
+  LISP_SET_FUNCTION("cdr", LdCdr);
+  LISP_SET_FUNCTION("rplaca", LdRPlacA);
+  LISP_SET_FUNCTION("rplacd", LdRPlacD);
+  LISP_SET_FUNCTION("atom", LdAtom);
+  LISP_SET_FUNCTION("consp", LdConsP);
+  LISP_SET_FUNCTION("symbolp", LdSymbolP);
+  LISP_SET_FUNCTION("numberp", LdNumberP);
+  LISP_SET_FUNCTION("fixnump", LdFixNumP);
+  LISP_SET_FUNCTION("+", LdAdd);
+  LISP_SET_FUNCTION("-", LdSub);
+  LISP_SET_FUNCTION("*", LdMul);
+  LISP_SET_FUNCTION("/", LdDiv);
+  LISP_SET_FUNCTION("<", LdLt);
+  LISP_SET_FUNCTION("not", LdNot);
+  LISP_SET_FUNCTION("eval", LdEval);
+  LISP_SET_FUNCTION("print", LdPrint);
+  LISP_SET_FUNCTION("princ", LdPrinc);
+  LISP_SET_FUNCTION("read", LdRead);
+  LISP_SET_FUNCTION("load", LdLoad);
+  LISP_SET_FUNCTION("exit", LdExit);
+  LISP_SET_FUNCTION("error", LdError);
+  LISP_SET_FUNCTION("prog1", LdProg1);
+  LISP_SET_FUNCTION("assoc", LdAssoc);
+  LISP_SET_FUNCTION("apply", LdApply);
+
+  LISP_SET_FUNCTION("s_ptr", LdSp);
+  LISP_SET_FUNCTION("gensym", LdMakeGenSym);
 }
 // repl
 // -----------------------------------------------------------------------
@@ -253,7 +263,6 @@ LispObject TopLevelEval(LispObject expr) {
   LispIndex saved_stack_ptr = stack_ptr;
   LispEnv()->frame = LISP_NIL;
   v = EVAL(expr, LispEnv());
-  /* fixme: */
   LispEnv()->frame = LISP_NIL;
   stack_ptr = saved_stack_ptr;
   return v;
@@ -282,19 +291,15 @@ int main(int argc, char *argv[]) {
   while (1) {
     printf("> ");
     expr = ReadSexpr(stdin);
-    /* LispPrint(v);  */
-    /* printf("++++\n"); */
     expr = TopLevelEval(expr);
     if (feof(stdin)) {
       break;
     }
-    /* LispPrint(expr); */
     LispPrint(stdout, expr, 0);
     /* printf("****\n"); */
     // print2DUtil((struct LispSymbol *)LispEnv()->symbol_table, 0);
     /* printf("----\n"); */
     /* LispPrint(v); */
-    /* print(stdout, v = toplevel_EVAL(v)); */
     /* set(symbol("that"), v); */
     printf("\n\n");
   }

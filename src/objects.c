@@ -125,6 +125,7 @@ void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c) {
 
 uint32_t LispBitVectorGet(LispObject o, uint32_t n) {
   uint32_t *b = o->bit_vector.self;
+
   return b[n >> 5] & (1 << (n & 31));
 }
 /* vector */
@@ -169,7 +170,7 @@ LispObject LispVectorPop(LispObject v, LispObject value) {
   return vec;
 }
 /* gen-symbol */
-LispObject LispMakeGenSym(LispIndex nargs) {
+LispObject LdMakeGenSym(LispIndex nargs) {
   ArgCount("gensym", nargs, 0);
   LispObject gs = (LispObject)LispAllocObject(kGenSym, 0);
   gs->gen_sym.stype = kSymGenSym;
@@ -194,16 +195,20 @@ char *LispSymbolName(LispObject sym) {
 LispObject MakeCons(void) { return LispAllocObject(kList, 0); }
 
 LispObject cons_(LispObject car, LispObject cdr) {
+  PUSH(cdr);
+  PUSH(car);
   LispObject c = MakeCons();
-  LISP_CONS_CAR(c) = car;
-  LISP_CONS_CDR(c) = cdr;
+  LISP_CONS_CAR(c) = POP();
+  LISP_CONS_CDR(c) = POP();
   return c;
 }
 
 LispObject cons(LispObject car, LispObject cdr) {
+  PUSH(cdr);
+  PUSH(car);
   LispObject c = MakeCons();
-  LISP_CONS_CAR(c) = car;
-  LISP_CONS_CDR(c) = cdr;
+  LISP_CONS_CAR(c) = POP();
+  LISP_CONS_CDR(c) = POP();
   PUSH(c);
   return c;
 }

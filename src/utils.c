@@ -9,6 +9,7 @@
 #include "utils.h"
 
 #include "gc.h"
+#include "memorylayout.h"
 #include "print.h"
 
 char *Uint2Str(char *dest, LispIndex len, LispIndex num, Byte base) {

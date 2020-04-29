@@ -334,7 +334,7 @@ LispObject do_read_sexpr(FILE *f, LispFixNum fixup) {
       break;
     }
     case kTokQuote: {
-      head = LispMakeSymbol("'");
+      head = LispMakeSymbol("quote");
       list_p = true;
       break;
     }
@@ -417,13 +417,19 @@ LispObject ReadSexpr(FILE *f) {
 LispObject LoadFile(char *fname) {
   LispObject e, v = LISP_NIL;
   FILE *f = fopen(fname, "r");
+  LispIndex i = 0;
   if (f == NULL) {
     LispError("file not found\n");
   }
   while (1) {
     e = ReadSexpr(f);
-    if (feof(f)) break;
-    v = TopLevelEval(e);
+    printf("%4ld.", i++);
+    LispPrint(stdout, e, 0);
+    printf("\n");
+    if (feof(f)) {
+      break;
+    }
+    e = TopLevelEval(e);
   }
   fclose(f);
   return v;

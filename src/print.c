@@ -17,8 +17,9 @@
 LispObject cons_flags;
 LabelTable print_conses;
 
-#define CONS_INDEX(c) \
-  (((LispFixNum)LISP_CONS_PTR(c)) - ((LispFixNum)from_space))
+#define CONS_INDEX(c)                         \
+  (((LispSmallestStruct *)LISP_CONS_PTR(c)) - \
+   ((LispSmallestStruct *)from_space))
 
 #define MARKED_P(c) LispBitVectorGet(cons_flags, CONS_INDEX(c))
 #define MARK_CONS(c) LispBitVectorSet(cons_flags, CONS_INDEX(c), 1)
@@ -40,7 +41,7 @@ void LispTypeError(char *fname, char *expected, LispObject got) {
 }
 
 static void PrintTraverse(LispObject v) {
-  while (LISP_ConsP(v)) {
+  while (LISP_ConsP(v) && !LISP_UNBOUNDP(LISP_CONS_CAR(v))) {
     if (MARKED_P(v)) {
       LabelTableAdjoin(&print_conses, v);
       break;

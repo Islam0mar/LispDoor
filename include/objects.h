@@ -132,8 +132,8 @@ typedef enum {
   ((LispObject)(((LispFixNum)(c << 2) | LISP_CHARACTER_TAG)))
 #define LISP_CHAR_CODE(obje) (((LispFixNum)(obje)) >> 2)
 
-#define LISP_NumberP(t) (t >= kFixNum && t <= kLastNumber)
-#define LISP_RealP(t) (t >= kFixNum && t < kComplex)
+#define LISP_NumberP(x) \
+  (LISP_TYPE_OF(x) >= kFixNum && LISP_TYPE_OF(x) <= kLastNumber)
 #define LISP_VectorP(x) ((LISP_IMMEDIATE(x) == 0) && (x)->d.t == kVector)
 #define LISP_BitVectorP(x) \
   ((LISP_IMMEDIATE(x) == 0) && ((x)->d.t == kBitVector))
@@ -353,7 +353,7 @@ LispObject LispVectorPush(LispObject v, LispObject value);
 LispObject LispVectorPop(LispObject v, LispObject value);
 
 /* gen-symbol */
-LispObject LispMakeGenSym(LispIndex nargs);
+LispObject LdMakeGenSym(LispIndex nargs);
 char *LispSymbolName(LispObject sym);
 
 /* conses */

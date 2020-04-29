@@ -122,7 +122,7 @@ LispObject LispGcRelocate(LispObject o) {
       }
       case kSymbol: {
         if (LISP_SYMBOL_GENSYMP(o)) {
-          o_new = LispMakeGenSym(0);
+          o_new = LdMakeGenSym(0);
           o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
           LISP_SET_FORWARDED(o, o_new);
         }
@@ -184,8 +184,6 @@ LispObject LispGcRelocate(LispObject o) {
           /* forwarded cons */
           a = LISP_CONS_CAR(o);
           if (a == LISP_UNBOUND) {
-            LispPrint(stdout, o, 0);
-            printf("\n");
             d = LISP_CONS_CDR(o);
             forwarded_p = true;
             break;
@@ -254,7 +252,11 @@ LispObject GC(LispNArg narg) {
     rs = rs->prev;
   }
   /* 4. print_conses */
+  items = print_conses.items;
   LabelTableRelocate(&print_conses);
+  for (i = 0; i < print_conses.n; i++) {
+    print_conses.items[i] = LispGcRelocate(items[i]);
+  }
   /* 5. cons_flag */
   cons_flags = LispGcRelocate(cons_flags);
 
