@@ -26,7 +26,7 @@ extern LispObject stack[N_STACK];
 extern LispFixNum stack_ptr;
 #define PUSH(v)                     \
   do {                              \
-    if (stack_ptr > N_STACK) {      \
+    if (stack_ptr >= N_STACK) {     \
       stack_ptr = 0;                \
       LispError("stack overflow."); \
     } else {                        \

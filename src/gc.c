@@ -231,6 +231,7 @@ LispObject GC(LispNArg narg) {
   /* trace number of objects allocated */
   *LispNumberOfObjectsAllocated() = 0;
   /* 1. stack values */
+  printf("gc1.stack = %ld\n", stack_ptr);
   for (i = 0; i < stack_ptr; i++) {
     stack[i] = LispGcRelocate(stack[i]);
   }
@@ -266,6 +267,8 @@ LispObject GC(LispNArg narg) {
   temp = to_space;
   to_space = from_space;
   from_space = temp;
+
+    printf("gc2.stack = %ld\n", stack_ptr);
 
   /* All data was live */
   if ((uintptr_t)curr_heap > (uintptr_t)heap_limit) {

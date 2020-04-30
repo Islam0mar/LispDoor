@@ -215,6 +215,8 @@ static void DoPrint(FILE *f, LispObject o, int princ) {
 
 void LispPrint(FILE *f, LispObject v, int princ) {
   LabelTableClear(&print_conses);
+  PUSH(v);
   PrintTraverse(v);
+  v = POP();
   DoPrint(f, v, princ);
 }

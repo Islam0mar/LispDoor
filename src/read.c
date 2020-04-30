@@ -25,6 +25,9 @@ enum {
   kTokNum,
   kTokSingleFloat,
   kTokDoubleFloat,
+  kTokString,
+  kTokVector,
+  kTokBitVector,
   kTokBackQuote,
   kTokComma,
   kTokCommaAt,
@@ -429,7 +432,9 @@ LispObject LoadFile(char *fname) {
     if (feof(f)) {
       break;
     }
+    printf("stack1 = %ld\n", stack_ptr);
     e = TopLevelEval(e);
+    printf("stack2 = %ld\n", stack_ptr);
   }
   fclose(f);
   return v;

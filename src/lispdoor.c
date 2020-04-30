@@ -9,7 +9,7 @@
 #include "lispdoor.h"
 
 LispObject LispApply(LispObject fun, LispObject arg_list) {
-  LispObject v, ans, *arg_syms, sym, *body, *frame, *rest, label;
+  LispObject v, ans, *arg_syms, sym, *body, *frame, *rest;
   LispFixNum saved_stack_ptr = stack_ptr, nargs;
   LispEnvPtr penv = LispEnv();
   /* protect from GC */
@@ -40,16 +40,9 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
               LISP_CONS_CAR(fun) == LispMakeSymbol("macro"))) {
     bool macro_p =
         (LISP_CONS_CAR(fun) == LispMakeSymbol("macro")) ? true : false;
-    bool label_p =
-        (LISP_CONS_CAR(fun) == LispMakeSymbol("label")) ? true : false;
-    if (label_p) {
-      /* (label name (lambda ...)) */
-      label = fun;
-      fun = LISP_CONS_CAR(LISP_CONS_CDR(LISP_CONS_CDR(fun)));
-    }
+
     /* defined func */
     /* Lambda closure (lambda args body . frame) */
-
     v = LISP_CONS_CDR(fun);
 
     PUSH(LISP_CONS_CAR(v));
@@ -57,14 +50,6 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
     body = &stack[stack_ptr - 1];
     *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
-    if (label_p) {
-      /* (label name (lambda ...)) */
-      /* name */
-      /* lambda */
-      *frame = cons_(cons(LISP_CONS_CAR(LISP_CONS_CDR(label)), label), *frame);
-      /* refetch arg_list */
-      arg_list = stack[saved_stack_ptr + 2];
-    }
 
     /* 1. extend frame: bind args */
     v = arg_list;
@@ -142,7 +127,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
 LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
   LispObject ans = LISP_NIL, v, arg_list, bind, func, *frame;
   LispFixNum saved_stack_ptr;
-  /* EVAL_TOP: */
+/* EVAL_TOP: */
   saved_stack_ptr = stack_ptr;
   ans = LISP_UNBOUND;
   PUSH(expr);
@@ -150,7 +135,7 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
   frame = &stack[stack_ptr - 1];
   if (LISP_SymbolP(expr)) {
     /* Symbol */
-    v = *frame;
+    v = penv->frame;
 
     while (LISP_ConsP(v)) {
       bind = LISP_CONS_CAR(v);

@@ -38,14 +38,29 @@ LispObject LispApply(LispObject fun, LispObject arg_list);
 // -------------------------------------------------------------
 LispObject LdLabel(LispNArg narg) {
   LispObject v, pv, body;
+  LispFixNum saved_stack_ptr;
   ArgCount("label", narg, 1);
   /* the syntax of label is (label name (lambda args body ...)) */
   v = POP();
-  pv = LISP_CONS_CAR(v);                  /* name */
-  body = LISP_CONS_CAR(LISP_CONS_CDR(v)); /* function */
+  saved_stack_ptr = stack_ptr;
+  pv = LISP_CONS_CAR(v); /* name */
+  PUSH(pv);
+  body = LISP_CONS_CAR(LISP_CONS_CDR(v)); /* lambda expr */
   body = EVAL(body, LispEnv());           /* evaluate lambda */
-  v = cons_(LispMakeSymbol("label"), cons(pv, cons(body, LISP_NIL)));
-  return v;
+  PUSH(body);
+  pv = stack[saved_stack_ptr];
+  /* (lambda args body . frame) */
+  v = LISP_CONS_CDR(LISP_CONS_CDR(LISP_CONS_CDR(body)));
+  if (LISP_ConsP(v)) {
+    v = cons_(cons(pv, body), v);
+  } else {
+    v = cons_(cons(pv, body), LISP_NIL);
+  }
+  body = stack[saved_stack_ptr + 1];
+  LISP_CONS_CDR(LISP_CONS_CDR(LISP_CONS_CDR(body))) = v;
+  stack_ptr = saved_stack_ptr;
+
+  return body;
 }
 LispObject LdLambda(LispNArg narg) {
   LispObject v, arg_syms, body, ans;
@@ -109,7 +124,7 @@ LispObject LdIf(LispNArg narg) {
   LispEnv()->frame = stack[stack_ptr - 1];
   ans = EVAL(ans, LispEnv());
   LispEnv()->frame = stack[stack_ptr - 1];
-  POPN(2);
+  /* POPN(2); */
   return ans;
 }
 LispObject LdCond(LispNArg narg) {
@@ -226,8 +241,8 @@ LispObject LdProgn(LispNArg narg) {
 LispObject LdEq(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("eq", narg, 2);
-  POPN(2);
-  return LISP_MAKE_BOOL(stack[stack_ptr] == stack[stack_ptr + 1]);
+  /* POPN(2); */
+  return LISP_MAKE_BOOL(stack[stack_ptr - 1] == stack[stack_ptr - 2]);
 }
 
 LispObject LdSet(LispNArg narg) {
@@ -259,8 +274,8 @@ LispObject LdSet(LispNArg narg) {
 LispObject LdBoundp(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("boundp", narg, 1);
-  POPN(1);
-  return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr]));
+  /* POPN(1); */
+  return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr - 1]));
 }
 LispObject LdCons(LispNArg narg) {
   ArgCount("cons", narg, 2);
@@ -490,7 +505,7 @@ LispObject LdAssoc(LispNArg narg) {
 LispObject LdApply(LispNArg narg) {
   ArgCount("apply", narg, 2);
   LispObject v = stack[stack_ptr - 1], f = stack[stack_ptr - 2];
-  POPN(2);
+  /* POPN(2); */
   if (LISP_CFunctionP(f) && LISP_CFUNCTION_SPECIALP(f)) {
     LispError(
         "apply: error: cannot apply special operator "
