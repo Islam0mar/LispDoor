@@ -16,50 +16,32 @@
 #include "utils.h"
 
 /* helper functions */
-static inline LispIndex ConsCount(LispObject v) {
-  LispIndex nargs = 0;
-  while (LISP_ConsP(v)) {
-    nargs++;
-    v = LISP_CONS_CDR(v);
-  }
-  return nargs;
-}
-static inline LispObject ConsNth(LispIndex n, LispObject lst) {
-  LispIndex i = 0;
-  for (; i < n; ++i) {
-    lst = LISP_CONS_CDR(lst);
-  }
-  lst = LISP_CONS_CAR(lst);
-  return lst;
-}
 LispObject LispApply(LispObject fun, LispObject arg_list);
 
 // Builtin functions
 // -------------------------------------------------------------
 LispObject LdLabel(LispNArg narg) {
-  LispObject v, pv, body;
+  LispObject v, name, body;
   LispFixNum saved_stack_ptr;
   ArgCount("label", narg, 1);
   /* the syntax of label is (label name (lambda args body ...)) */
   v = POP();
   saved_stack_ptr = stack_ptr;
-  pv = LISP_CONS_CAR(v); /* name */
-  PUSH(pv);
+  name = LISP_CONS_CAR(v); /* name */
+  PUSH(name);
   body = LISP_CONS_CAR(LISP_CONS_CDR(v)); /* lambda expr */
   body = EVAL(body, LispEnv());           /* evaluate lambda */
   PUSH(body);
-  pv = stack[saved_stack_ptr];
+  name = stack[saved_stack_ptr];
   /* (lambda args body . frame) */
   v = LISP_CONS_CDR(LISP_CONS_CDR(LISP_CONS_CDR(body)));
   if (LISP_ConsP(v)) {
-    v = cons_(cons(pv, body), v);
+    v = cons_(cons(name, body), v);
   } else {
-    v = cons_(cons(pv, body), LISP_NIL);
+    v = cons_(cons(name, body), LISP_NIL);
   }
   body = stack[saved_stack_ptr + 1];
   LISP_CONS_CDR(LISP_CONS_CDR(LISP_CONS_CDR(body))) = v;
-  stack_ptr = saved_stack_ptr;
-
   return body;
 }
 LispObject LdLambda(LispNArg narg) {
@@ -251,7 +233,6 @@ LispObject LdSet(LispNArg narg) {
   bool done = false;
   ans = POP();
   v = POP();
-  /* FixMe: (set x 10) */
   if (!LISP_SymbolP(v)) {
     LispError("set: error: expected symbol\n");
   }
@@ -275,7 +256,8 @@ LispObject LdBoundp(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
   ArgCount("boundp", narg, 1);
   /* POPN(1); */
-  return LISP_MAKE_BOOL(!LISP_UNBOUNDP(stack[stack_ptr - 1]));
+  LispObject v = ToSymbol(stack[stack_ptr - 1], "boundp")->value;
+  return LISP_MAKE_BOOL(!LISP_UNBOUNDP(v));
 }
 LispObject LdCons(LispNArg narg) {
   ArgCount("cons", narg, 2);
@@ -450,7 +432,7 @@ LispObject LdPrint(LispNArg narg) {
     LispPrint(stdout, stack[i], 0);
   }
   fprintf(stdout, "\n");
-  return LISP_NIL;
+  return stack[stack_ptr - 1];
 }
 LispObject LdPrinc(LispNArg narg) {
   ArgCount("princ", narg, 1);

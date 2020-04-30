@@ -9,7 +9,7 @@
 #include "lispdoor.h"
 
 LispObject LispApply(LispObject fun, LispObject arg_list) {
-  LispObject v, ans, *arg_syms, sym, *body, *frame, *rest;
+  LispObject v, ans, *arg_syms, sym, *body, *frame;
   LispFixNum saved_stack_ptr = stack_ptr, nargs;
   LispEnvPtr penv = LispEnv();
   /* protect from GC */
@@ -24,11 +24,8 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     v = arg_list;
     /* evaluate argument list, placing arguments on stack */
     while (LISP_ConsP(v)) {
-      v = EVAL(LISP_CONS_CAR(v), penv);
-      penv->frame = stack[saved_stack_ptr];
       PUSH(v);
-      v = stack[saved_stack_ptr + 2] =
-          LISP_CONS_CDR(stack[saved_stack_ptr + 2]);
+      v = LISP_CONS_CDR(v);
     }
     nargs = stack_ptr - saved_stack_ptr - 4;
     fun = stack[saved_stack_ptr + 1];
@@ -52,7 +49,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
 
     /* 1. extend frame: bind args */
-    v = arg_list;
+    v = stack[saved_stack_ptr + 2];
     while (LISP_ConsP(v)) {
       if (!LISP_ConsP(*arg_syms)) {
         if (LISP_NULL(*arg_syms)) {
@@ -65,10 +62,6 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
         LispError("apply: error: formal argument not a symbol\n");
       }
       v = LISP_CONS_CAR(v);
-      if (!macro_p) {
-        v = EVAL(v, penv);
-        penv->frame = stack[saved_stack_ptr];
-      }
       *frame = cons_(cons(sym, v), *frame);
       *arg_syms = LISP_CONS_CDR(*arg_syms);
       v = stack[saved_stack_ptr + 2] =
@@ -77,42 +70,21 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     /* rest args */
     if (!LISP_NULL(*arg_syms)) {
       if (LISP_SymbolP(*arg_syms)) {
-        if (macro_p) {
-          *frame = cons_(cons(*arg_syms, stack[saved_stack_ptr + 2]), *frame);
-        } else {
-          PUSH(LISP_NIL);
-          PUSH(LISP_NIL);
-          /* correct arg_list */
-          v = stack[saved_stack_ptr + 2];
-          rest = &stack[stack_ptr - 1];
-          // build list of rest arguments
-          // we have to build it forwards, which is tricky
-          while (LISP_ConsP(v)) {
-            v = LISP_CONS_CAR(v);
-            v = EVAL(v, penv);
-            penv->frame = stack[saved_stack_ptr]; /* old_frame */
-            v = cons_(v, LISP_NIL);
-            if (LISP_ConsP(*rest)) {
-              LISP_CONS_CDR(*rest) = v;
-            } else {
-              stack[stack_ptr - 2] = v;
-            }
-            *rest = v;
-            v = stack[saved_stack_ptr + 2] =
-                LISP_CONS_CDR(stack[saved_stack_ptr + 2]);
-          }
-          *frame = cons_(cons(*arg_syms, stack[stack_ptr - 2]), *frame);
-        }
+        *frame = cons_(cons(*arg_syms, stack[saved_stack_ptr + 2]), *frame);
       } else if (LISP_ConsP(*arg_syms)) {
         LispError("apply: error: too few arguments\n");
       }
     }
+
     penv->frame = *frame;
-    ans = EVAL(*body, penv);
-    penv->frame = stack[saved_stack_ptr];
     if (macro_p) {
+      stack_ptr = saved_stack_ptr;
+      PUSH(stack[saved_stack_ptr]);
+      ans = EVAL(*body, penv);
+      penv->frame = POP();
       ans = EVAL(ans, penv);
-      penv->frame = stack[saved_stack_ptr];
+    } else {
+      ans = EVAL(*body, penv);
     }
 
   } else {
@@ -125,13 +97,14 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
 }
 
 LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
-  LispObject ans = LISP_NIL, v, arg_list, bind, func, *frame;
+  LispObject ans, v, arg_list, bind, func, *frame;
   LispFixNum saved_stack_ptr;
-/* EVAL_TOP: */
+EVAL_TOP:
   saved_stack_ptr = stack_ptr;
   ans = LISP_UNBOUND;
   PUSH(expr);
   PUSH(penv->frame);
+  PUSH(LISP_NIL);
   frame = &stack[stack_ptr - 1];
   if (LISP_SymbolP(expr)) {
     /* Symbol */
@@ -154,24 +127,127 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
                 LispSymbolName(expr));
     }
   } else if (LISP_ConsP(expr)) {
-    /* Cons */
     func = LISP_CONS_CAR(expr);
-    /* Apply function */
+    /* eval function */
     func = EVAL(func, penv);
-    penv->frame = *frame;
+    penv->frame = stack[saved_stack_ptr + 1];
 
-    arg_list = LISP_CONS_CDR(stack[saved_stack_ptr]);
+    stack[saved_stack_ptr] = arg_list = LISP_CONS_CDR(stack[saved_stack_ptr]);
     if (LISP_CFunctionP(func) && LISP_CFUNCTION_SPECIALP(func)) {
       PUSH(arg_list);
       ans = (func->cfun.f)(1);
     } else {
-      ans = LispApply(func, arg_list);
+      /* Apply */
+      LispFixNum nargs;
+      LispObject *arg_syms, sym, *body, *rest, *fun;
+      fun = &stack[stack_ptr];
+      PUSH(func);
+      nargs = stack_ptr;
+      /* builtin func/special */
+      if (LISP_CFunctionP(*fun)) {
+        v = stack[saved_stack_ptr];
+        /* evaluate argument list, placing arguments on stack */
+        while (LISP_ConsP(v)) {
+          v = EVAL(LISP_CONS_CAR(v), penv);
+          penv->frame = stack[saved_stack_ptr + 1];
+          PUSH(v);
+          v = stack[saved_stack_ptr] = LISP_CONS_CDR(stack[saved_stack_ptr]);
+        }
+        nargs = stack_ptr - nargs;
+        /* call function */
+        ans = ((*fun)->cfun.f)(nargs);
+      } else if (LISP_ConsP(*fun) &&
+                 (LISP_CONS_CAR(*fun) == LispMakeSymbol("lambda") ||
+                  LISP_CONS_CAR(*fun) == LispMakeSymbol("label") ||
+                  LISP_CONS_CAR(*fun) == LispMakeSymbol("macro"))) {
+        bool macro_p =
+            (LISP_CONS_CAR(*fun) == LispMakeSymbol("macro")) ? true : false;
+
+        /* defined func */
+        /* Lambda closure (lambda args body . frame) */
+        v = LISP_CONS_CDR(*fun);
+
+        PUSH(LISP_CONS_CAR(v));
+        arg_syms = &stack[stack_ptr - 1];
+        PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
+        body = &stack[stack_ptr - 1];
+        *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
+
+        /* 1. extend frame: bind args */
+        v = stack[saved_stack_ptr];
+        while (LISP_ConsP(v)) {
+          if (!LISP_ConsP(*arg_syms)) {
+            if (LISP_NULL(*arg_syms)) {
+              LispError("apply: error: too many arguments\n");
+            }
+            break;
+          }
+          sym = LISP_CONS_CAR(*arg_syms);
+          if (!LISP_SymbolP(sym)) {
+            LispError("apply: error: formal argument not a symbol\n");
+          }
+          v = LISP_CONS_CAR(v);
+          if (!macro_p) {
+            v = EVAL(v, penv);
+            penv->frame = stack[saved_stack_ptr + 1];
+          }
+          *frame = cons_(cons(sym, v), *frame);
+          *arg_syms = LISP_CONS_CDR(*arg_syms);
+          v = stack[saved_stack_ptr] = LISP_CONS_CDR(stack[saved_stack_ptr]);
+        }
+        /* rest args */
+        if (!LISP_NULL(*arg_syms)) {
+          if (LISP_SymbolP(*arg_syms)) {
+            if (macro_p) {
+              *frame = cons_(cons(*arg_syms, stack[saved_stack_ptr]), *frame);
+            } else {
+              PUSH(LISP_NIL);
+              PUSH(LISP_NIL);
+              /* correct arg_list */
+              v = stack[saved_stack_ptr];
+              rest = &stack[stack_ptr - 1];
+              // build list of rest arguments
+              // we have to build it forwards, which is tricky
+              while (LISP_ConsP(v)) {
+                v = LISP_CONS_CAR(v);
+                v = EVAL(v, penv);
+                penv->frame = stack[saved_stack_ptr + 1]; /* old_frame */
+                v = cons_(v, LISP_NIL);
+                if (LISP_ConsP(*rest)) {
+                  LISP_CONS_CDR(*rest) = v;
+                } else {
+                  stack[stack_ptr - 2] = v;
+                }
+                *rest = v;
+                v = stack[saved_stack_ptr] =
+                    LISP_CONS_CDR(stack[saved_stack_ptr]);
+              }
+              *frame = cons_(cons(*arg_syms, stack[stack_ptr - 2]), *frame);
+            }
+          } else if (LISP_ConsP(*arg_syms)) {
+            LispError("apply: error: too few arguments\n");
+          }
+        }
+        penv->frame = *frame;
+        if (macro_p) {
+          stack_ptr = saved_stack_ptr;
+          PUSH(stack[saved_stack_ptr + 1]);
+          ans = EVAL(*body, penv);
+          penv->frame = POP();
+          TAIL_EVAL(ans, penv);
+        } else {
+          TAIL_EVAL(*body, penv);
+        }
+      } else {
+        LispTypeError("apply", "lambda, macro, label or builtin", *fun);
+        ans = LISP_NIL;
+      }
     }
   } else {
     LispTypeError("eval_sexpr", "symbol or cons", expr);
   }
   stack_ptr = saved_stack_ptr;
-  penv->frame = *frame;
+  penv->frame = stack[saved_stack_ptr + 1];
   return ans;
 }
 

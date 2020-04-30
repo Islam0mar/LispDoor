@@ -209,7 +209,6 @@ LispObject cons(LispObject car, LispObject cdr) {
   LispObject c = MakeCons();
   LISP_CONS_CAR(c) = POP();
   LISP_CONS_CDR(c) = POP();
-  PUSH(c);
   return c;
 }
 // allocate n consecutive conses
