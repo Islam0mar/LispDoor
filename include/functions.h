@@ -181,26 +181,26 @@ LispObject LdOr(LispNArg narg) {
 }
 LispObject LdWhile(LispNArg narg) {
   /* (while test body ...) */
-  LispObject ans = LISP_NIL, *pv, *frame, *body, *cond;
+  LispObject *tmp, *pv, *frame, *body, *cond;
+  tmp = &stack[stack_ptr - 1];
   PUSH(LispEnv()->frame);
   frame = &stack[stack_ptr - 1];
-  pv = &stack[stack_ptr - 2];
-  PUSH(LISP_CONS_CDR(*pv));
+  PUSH(LISP_CONS_CDR(*tmp));
   body = &stack[stack_ptr - 1];
-  PUSH(LISP_CONS_CAR(*pv));
+  PUSH(LISP_CONS_CAR(*tmp));
   cond = &stack[stack_ptr - 1];
   PUSH(LISP_NIL);
   pv = &stack[stack_ptr - 1];
   while (!LISP_NULL(EVAL(*cond, LispEnv()))) {
     LispEnv()->frame = *frame;
-    while (LISP_ConsP(*body)) {
-      *pv = EVAL(LISP_CONS_CAR(*body), LispEnv());
+    *tmp = *body;
+    while (LISP_ConsP(*tmp)) {
+      *pv = EVAL(LISP_CONS_CAR(*tmp), LispEnv());
       LispEnv()->frame = *frame;
-      *body = LISP_CONS_CDR(*body);
+      *tmp = LISP_CONS_CDR(*tmp);
     }
   }
-  ans = *pv;
-  return ans;
+  return *pv;
 }
 LispObject LdProgn(LispNArg narg) {
   /* return last arg */
@@ -441,7 +441,7 @@ LispObject LdPrinc(LispNArg narg) {
     LispPrint(stdout, stack[i], 1);
   }
   fprintf(stdout, "\n");
-  return LISP_NIL;
+  return stack[stack_ptr - 1];
 }
 LispObject LdRead(LispNArg narg) {
   ArgCount("read", narg, 0);

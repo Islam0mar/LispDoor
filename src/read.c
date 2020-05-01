@@ -317,22 +317,22 @@ LispObject do_read_sexpr(FILE *f, LispFixNum fixup) {
       break;
     }
     case kTokComma: {
-      head = LispMakeSymbol(",");
+      head = LispMakeSymbol("*comma*");
       list_p = true;
       break;
     }
     case kTokCommaAt: {
-      head = LispMakeSymbol(",@");
+      head = LispMakeSymbol("*comma-at*");
       list_p = true;
       break;
     }
     case kTokCommaDot: {
-      head = LispMakeSymbol(",.");
+      head = LispMakeSymbol("*comma-dot*");
       list_p = true;
       break;
     }
     case kTokBackQuote: {
-      head = LispMakeSymbol("`");
+      head = LispMakeSymbol("backquote");
       list_p = true;
       break;
     }

@@ -268,7 +268,7 @@ LispObject GC(LispNArg narg) {
   to_space = from_space;
   from_space = temp;
 
-    printf("gc2.stack = %ld\n", stack_ptr);
+  printf("gc2.stack = %ld\n", stack_ptr);
 
   /* All data was live */
   if ((uintptr_t)curr_heap > (uintptr_t)heap_limit) {
