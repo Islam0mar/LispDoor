@@ -12,7 +12,7 @@ Forked from [FemtoLisp](https://github.com/JeffBezanson/femtolisp) and [ECL](htt
 # TODO:
 - [x] GC complete
 - [x] complete primitive functions
-- [ ] support string,vector,bitvector
+- [ ] support string,vector,bitvector, floating numbers
 - [ ] add tests
 - [ ] add HAL functions
 - [ ] add multitasking (maybe Round-robin scheduling)
