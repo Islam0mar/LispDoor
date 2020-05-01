@@ -47,7 +47,9 @@ static void PrintTraverse(LispObject v) {
       break;
     }
     MARK_CONS(v);
+    PUSH(v);
     PrintTraverse(LISP_CONS_CAR(v));
+    v = POP();
     v = LISP_CONS_CDR(v);
   }
 }

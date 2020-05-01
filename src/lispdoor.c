@@ -44,7 +44,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
 
     PUSH(LISP_CONS_CAR(v));
     arg_syms = &stack[stack_ptr - 1];
-    PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
+    PUSH(LISP_CONS_CAR_SAFE(LISP_CONS_CDR(v)));
     body = &stack[stack_ptr - 1];
     *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
 
@@ -167,9 +167,9 @@ EVAL_TOP:
         /* Lambda closure (lambda args body . frame) */
         v = LISP_CONS_CDR(*fun);
 
-        PUSH(LISP_CONS_CAR(v));
+        PUSH(LISP_CONS_CAR_SAFE(v));
         arg_syms = &stack[stack_ptr - 1];
-        PUSH(LISP_CONS_CAR(LISP_CONS_CDR(v)));
+        PUSH(LISP_CONS_CAR_SAFE(LISP_CONS_CDR(v)));
         body = &stack[stack_ptr - 1];
         *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
 
@@ -314,7 +314,8 @@ void LispInit(void) {
   LISP_SET_FUNCTION("assoc", LdAssoc);
   LISP_SET_FUNCTION("apply", LdApply);
 
-  LISP_SET_FUNCTION("s_ptr", LdSp);
+  LISP_SET_FUNCTION("print-stack", LdPrintStack);
+  LISP_SET_FUNCTION("reset-stack", LdResetStack);
   LISP_SET_FUNCTION("gensym", LdMakeGenSym);
 }
 // repl

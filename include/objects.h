@@ -173,9 +173,11 @@ typedef enum {
 
 #define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) + kList)
 #define LISP_CONS_PTR(x) ((struct LispCons *)((intptr_t)(x)-kList))
-#define LISP_CONS_CAR(x) (*(LispObject *)((intptr_t)x - kList))
+#define LISP_CONS_CAR(x) (*((LispObject *)((intptr_t)x - kList)))
+#define LISP_CONS_CAR_SAFE(x) (ToCons((x), "car")->car)
 #define LISP_CONS_CDR(x) \
-  (*(LispObject *)((intptr_t)x + sizeof(LispObject) - kList))
+  (*((LispObject *)((intptr_t)x + sizeof(LispObject) - kList)))
+#define LISP_CONS_CDR_SAFE(x) (ToCons((x), "cdr")->cdr)
 #define LISP_RPLACA(x, v) (LISP_CONS_CAR(x) = (v))
 #define LISP_RPLACD(x, v) (LISP_CONS_CDR(x) = (v))
 
