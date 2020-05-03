@@ -114,7 +114,7 @@ struct LispSymbol *TreeBalance(struct LispSymbol *n) {
     NULL left and right pointers. */
 struct LispSymbol *TreeNewLispSymbol(char *str) {
   struct LispSymbol *node =
-      (struct LispSymbol *)LispAllocObject(kSymbol, strlen(str));
+      (struct LispSymbol *)LispAllocObject(kSymbol, (LispIndex)strlen(str));
   node->value = LISP_UNBOUND;
   node->stype = kSymOrdinary;
   strcpy(node->name, str);
@@ -204,13 +204,13 @@ struct LispSymbol *SymTreeLookUp(struct LispSymbol *ptree, char *str) {
 
 LispObject LispMakeSymbol(char *str) {
   struct LispSymbol *pnode;
-  struct LispSymbol **symbol_table =
-      (struct LispSymbol **)&LispEnv()->symbol_table;
+  struct LispSymbol **symbol_tree =
+      (struct LispSymbol **)&LispEnv()->symbol_tree;
 
-  pnode = SymTreeLookUp(*symbol_table, str);
+  pnode = SymTreeLookUp(*symbol_tree, str);
   if (pnode == NULL) {
-    *symbol_table = TreeInsert(*symbol_table, str);
-    pnode = SymTreeLookUp(*symbol_table, str);
+    *symbol_tree = TreeInsert(*symbol_tree, str);
+    pnode = SymTreeLookUp(*symbol_tree, str);
   }
   return (LispObject)pnode;
 }

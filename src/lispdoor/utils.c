@@ -6,11 +6,11 @@
  *
  */
 
-#include "utils.h"
+#include "lispdoor/utils.h"
 
-#include "gc.h"
-#include "memorylayout.h"
-#include "print.h"
+#include "lispdoor/gc.h"
+#include "lispdoor/memorylayout.h"
+#include "lispdoor/print.h"
 /* largest number for double is 2^53 = 9 * 10^15. */
 uint8_t Log10(uint64_t v) {
   return (v >= 10000000000000000u)
@@ -95,14 +95,14 @@ char *Double2Str(char *str, LispIndex len, double f, uint8_t precision) {
   Uint642Str(str, number_of_digits, integer_part);
   str[number_of_digits - 1] = precision == 0 ? '\0' : '.';
   for (i = 0; i < precision; ++i) {
-    f *= 10;
-    digit = (uint64_t)f % 10;
     if (number_of_digits + i >= len - 1) {
       LispPrintStr("warning: double floating number trancated\n");
       break;
     }
-    str[number_of_digits + i] = '0' + digit;
+    f *= 10;
     integer_part = (uint64_t)f;
+    digit = (uint8_t)(integer_part % 10);
+    str[number_of_digits + i] = '0' + digit;
     f -= (double)integer_part;
     if (f < epsilon) {
       break;
@@ -134,14 +134,14 @@ char *Float2Str(char *str, LispIndex len, float f, uint8_t precision) {
   Uint2Str(str, number_of_digits, integer_part, 10);
   str[number_of_digits - 1] = precision == 0 ? '\0' : '.';
   for (i = 0; i < precision; ++i) {
-    f *= 10;
-    digit = (uint32_t)f % 10;
     if (number_of_digits + i >= len - 1) {
       LispPrintStr("warning: floating number trancated\n");
       break;
     }
-    str[number_of_digits + i] = '0' + digit;
+    f *= 10;
     integer_part = (uint32_t)f;
+    digit = (uint8_t)(integer_part % 10);
+    str[number_of_digits + i] = '0' + digit;
     f -= (float)integer_part;
     if (f < epsilon) {
       break;

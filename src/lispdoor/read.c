@@ -6,16 +6,16 @@
  *
  */
 
-#include "read.h"
+#include "lispdoor/read.h"
 
-#include "eval.h"
-#include "memorylayout.h"
-#include "print.h"
-#include "read.h"
-#include "symboltree.h"
-#include "utils.h"
+#include "lispdoor/eval.h"
+#include "lispdoor/memorylayout.h"
+#include "lispdoor/print.h"
+#include "lispdoor/read.h"
+#include "lispdoor/symboltree.h"
+#include "lispdoor/utils.h"
 
-enum {
+typedef enum {
   kTokNone,
   kTokOpen,
   kTokClose,
@@ -42,16 +42,16 @@ enum {
   kTokSharpSym,
   kTokGenSym,
   kTokDoubleQuote
-};
+} LispTokenType;
 
-LispIndex toktype = kTokNone;
+LispTokenType toktype = kTokNone;
 LispObject tokval;
 
 static const uint32_t offsets_from_utf8[6] = {0x00000000UL, 0x00003080UL,
                                               0x000E2080UL, 0x03C82080UL,
                                               0xFA082080UL, 0x82082080UL};
 
-static const char trailing_bytes_for_utf8[256] = {
+static const uint8_t trailing_bytes_for_utf8[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -88,15 +88,13 @@ void TibUnReadChar() {
 void TibFlush() { terminal_buffer_get_index = terminal_buffer_insert_index; }
 
 /* get char */
-static inline int8_t GetChar() { return (int8_t)TibReadChar(); }
+static inline uint8_t GetChar() { return TibReadChar(); }
 static inline void UnGetChar() { TibUnReadChar(); }
 
-int8_t UTF8SeqLen(const char c) {
-  return trailing_bytes_for_utf8[(unsigned char)c] + 1;
-}
+uint8_t UTF8SeqLen(const uint8_t c) { return trailing_bytes_for_utf8[c] + 1; }
 
 uint32_t UTF8GetChar() {
-  int8_t amt = 0, sz, c;
+  uint8_t amt = 0, sz, c;
   uint32_t ch = 0;
 
   c = GetChar();
@@ -116,7 +114,7 @@ uint32_t UTF8GetChar() {
 
 char nextchar() {
   char c;
-  int8_t ch;
+  uint8_t ch;
 
   do {
     ch = GetChar();
@@ -137,17 +135,16 @@ char nextchar() {
 void take(void) { toktype = kTokNone; }
 
 void accumchar(char c, LispIndex *pi) {
-  scratch_pad[(*pi)++] = (int8_t)c;
+  scratch_pad[(*pi)++] = (uint8_t)c;
   if (*pi >= (LispIndex)(SCRATCH_PAD_SIZE - 1)) {
     LispError("read: error: token too long\n");
   }
 }
 
-// return: 1 for dot token, 0 for symbol
 /* return: true for dot token, false for symbol */
 bool read_token(char c, bool digits) {
   LispIndex i = 0, escaped = 0, dot = (c == '.'), totread = 0;
-  int8_t ch;
+  uint8_t ch;
 
   UnGetChar();
   while (1) {
@@ -173,12 +170,12 @@ terminate:
   return (dot && (totread == 2));
 }
 
-LispIndex peek() {
-  int8_t c, *end;
+LispTokenType peek() {
+  uint8_t c, *end;
   LispFixNum x;
 
   if (toktype != kTokNone) return toktype;
-  c = (int8_t)nextchar();
+  c = nextchar();
   if (c == EOF) return kTokNone;
   if (c == '(') {
     toktype = kTokOpen;
@@ -199,7 +196,7 @@ LispIndex peek() {
       /* FixMe: */
       toktype = kTokNum;
       tokval = LISP_MAKE_CHARACTER(UTF8GetChar());
-    } else if (isdigit((char)c)) {
+    } else if (isdigit(c)) {
       read_token((char)c, true);
       c = GetChar();
       if (c == '#')
@@ -208,7 +205,10 @@ LispIndex peek() {
         toktype = kTokLabel;
       else
         LispError("read: error: invalid label\n");
-      x = strtol(scratch_pad, &end, 10);
+      x = strtol((char *)scratch_pad, (char **)&end, 10);
+      if (*end != '\0') {
+        LispError("read: error: invalid label\n");
+      }
       tokval = LISP_MAKE_FIXNUM(x);
     } else {
       LispError("read: error: unknown read macro\n");
@@ -226,13 +226,13 @@ LispIndex peek() {
   } else if (isdigit(c) || c == '-' || c == '+') {
     read_token(c, false);
     if (c == '0' && (scratch_pad[1] == 'b')) {
-      x = strtol(scratch_pad + 2, &end, 2);
+      x = strtol((char *)scratch_pad + 2, (char **)&end, 2);
     } else {
-      x = strtol(scratch_pad, &end, 0);
+      x = strtol((char *)scratch_pad, (char **)&end, 0);
     }
     if (*end != '\0') {
       toktype = kTokSym;
-      tokval = LispMakeSymbol(scratch_pad);
+      tokval = LispMakeSymbol((char *)scratch_pad);
     } else {
       toktype = kTokNum;
       tokval = LISP_MAKE_FIXNUM(x);
@@ -242,18 +242,18 @@ LispIndex peek() {
       toktype = kTokDot;
     } else {
       toktype = kTokSym;
-      tokval = LispMakeSymbol(scratch_pad);
+      tokval = LispMakeSymbol((char *)scratch_pad);
     }
   }
   return toktype;
 }
 
 /* Parser                   tokens --> ast */
-LispObject do_read_sexpr(int8_t fixup);
-// build a list of conses. this is complicated by the fact that all conses
-// can move whenever a new cons is allocated. we have to refer to every cons
-// through a handle to a relocatable pointer (i.e. a pointer on the stack).
-void read_list(LispObject *pval, int8_t fixup) {
+LispObject do_read_sexpr(LispIndex fixup);
+/* build a list of conses. this is complicated by the fact that all conses
+ * can move whenever a new cons is allocated. we have to refer to every cons
+ * through a handle to a relocatable pointer (i.e. a pointer on the stack). */
+void read_list(LispObject *pval, LispIndex fixup) {
   LispObject c, *pc;
   uint32_t t;
 
@@ -270,18 +270,18 @@ void read_list(LispObject *pval, int8_t fixup) {
       LISP_CONS_CDR(*pc) = c;
     } else {
       *pval = c;
-      if (fixup != -1) {
+      if (fixup != NOTFOUND) {
         read_state->exprs.items[fixup] = c;
       }
     }
     *pc = c;
-    c = do_read_sexpr(-1);   // must be on separate lines due to undefined
-    LISP_CONS_CAR(*pc) = c;  // evaluation order
+    c = do_read_sexpr(NOTFOUND);  // must be on separate lines due to undefined
+    LISP_CONS_CAR(*pc) = c;       // evaluation order
 
     t = peek();
     if (t == kTokDot) {
       take();
-      c = do_read_sexpr(-1);
+      c = do_read_sexpr(NOTFOUND);
       LISP_CONS_CDR(*pc) = c;
       t = peek();
       if (t == EOF) {
@@ -297,7 +297,7 @@ void read_list(LispObject *pval, int8_t fixup) {
 }
 
 /* fixup is the index of the label we'd like to fix up with this read */
-LispObject do_read_sexpr(int8_t fixup) {
+LispObject do_read_sexpr(LispIndex fixup) {
   LispObject v = LISP_NIL, head;
   LispIndex i;
   uint32_t t = peek();
@@ -359,7 +359,7 @@ LispObject do_read_sexpr(int8_t fixup) {
       /*   cannot see pending labels. in other words: */
       /*   (... #2=#.#0# ... )    OK */
       /*   (... #2=#.(#2#) ... )  DO NOT WANT */
-      v = do_read_sexpr(-1);
+      v = do_read_sexpr(NOTFOUND);
       v = TopLevelEval(v);
       break;
     }
@@ -367,13 +367,13 @@ LispObject do_read_sexpr(int8_t fixup) {
       /* create backreference label */
       if (LabelTableLookUp(&read_state->labels, tokval) != NOTFOUND) {
         LispPrintStr("read: error: label ");
-        LispPrintObject(tokval, 0);
+        LispPrintObject(tokval, false);
         LispError(" redefined\n");
       }
       LabelTableInsert(&read_state->labels, tokval);
       i = read_state->exprs.n;
       LabelTableInsert(&read_state->exprs, LISP_UNBOUND);
-      v = do_read_sexpr((LispFixNum)i);
+      v = do_read_sexpr(i);
       read_state->exprs.items[i] = v;
       break;
     }
@@ -383,7 +383,7 @@ LispObject do_read_sexpr(int8_t fixup) {
       if (i == NOTFOUND || i >= read_state->exprs.n ||
           read_state->exprs.items[i] == LISP_UNBOUND) {
         LispPrintStr("read: error: undefined label ");
-        LispPrintObject(tokval, 0);
+        LispPrintObject(tokval, false);
         LispError("\n");
       }
       v = read_state->exprs.items[i];
@@ -399,10 +399,10 @@ LispObject do_read_sexpr(int8_t fixup) {
     LISP_CONS_CAR(LISP_CONS_CDR(v)) = LISP_CONS_CDR(LISP_CONS_CDR(v)) =
         LISP_NIL;
     PUSH(v);
-    if (fixup != -1) {
+    if (fixup != NOTFOUND) {
       read_state->exprs.items[fixup] = v;
     }
-    v = do_read_sexpr(-1);
+    v = do_read_sexpr(NOTFOUND);
     LISP_CONS_CAR(LISP_CONS_CDR(stack[stack_index - 1])) = v;
     v = POP();
   }
@@ -416,7 +416,7 @@ LispObject ReadSexpr() {
   LabelTableInit(&state.exprs, 16);
   read_state = &state;
 
-  v = do_read_sexpr(-1);
+  v = do_read_sexpr(NOTFOUND);
 
   read_state = state.prev;
   return v;

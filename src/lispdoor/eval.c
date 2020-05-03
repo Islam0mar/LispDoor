@@ -104,7 +104,7 @@ LispObject EvalSexpr(LispObject expr, LispEnvPtr penv) {
   LispObject ans, v, arg_list, bind, func, *frame;
   LispIndex saved_stack_index;
 EVAL_TOP:
-  if ((unsigned)(char *)&ans < (unsigned)stack_bottom) {
+  if ((Byte *)&ans < stack_bottom) {
     LispError("eval: error: c-stack overflow\n");
   }
 

@@ -37,12 +37,6 @@ HEAP_SIZE = 0;
 
 SECTIONS
 {
-    .isr_vector : {        /* the vector table goes FIRST into FLASH */
-        KEEP(*(.isr_vector)) /* vector table */
-        . = ALIGN(4);
-    } >FLASH
-
-
     .text : {              /* code and constants */
         . = ALIGN(4);
         *(.text)           /* .text sections (code) */
@@ -91,6 +85,11 @@ SECTIONS
         . = . + STACK_SIZE;
         . = ALIGN(4);
         __stack_end__ = .;
+    } >RAM
+
+    .isr_vector : {        /* the vector table */
+        KEEP(*(.isr_vector)) /* vector table */
+        . = ALIGN(4);
     } >RAM
 
     .data :  AT (_etext) {

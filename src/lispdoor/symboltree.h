@@ -1,5 +1,5 @@
 /**
- *   \file symboltree.c
+ *   \file symboltree.h
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)

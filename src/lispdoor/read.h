@@ -11,10 +11,11 @@
 #include "lispdoor/objects.h"
 #include "lispdoor/utils.h"
 
-/* Lexical analyzer         input string --> tokens */
-/* read */
+#define UEOF ((uint32_t)-1)
+#define EOF ((uint8_t)-1)
 
-bool SymCharP(char c);
+/* Lexical analyzer         input string --> tokens */
 LispObject ReadSexpr();
+bool SymCharP(char c);
 
 #endif /* LISPDOOR_READ_H_INCLUDED */

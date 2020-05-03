@@ -67,9 +67,9 @@ LispObject LispMakeCFunctionSpecial(char *name, LispFunc fun) {
 
 /* string */
 LispObject LispMakeString(char *str) {
-  LispIndex n = strlen(str);
+  LispIndex n = (LispIndex)strlen(str);
   LispObject obj;
-  obj = LispAllocObject(kString, n - 1);
+  obj = LispAllocObject(kString, (LispIndex)n - 1);
   obj->string.size = n;
   strncpy(obj->string.self, str, n);
   return obj;
@@ -78,14 +78,14 @@ LispObject LispMakeString(char *str) {
 /* bit-vector */
 LispObject LispBitVectorResize(LispObject bv, LispIndex n) {
   LispObject bv_new;
-  LispIndex i = 0, sz = ((n + 31) >> 5) * sizeof(uint32_t);
+  LispIndex i = 0, sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
   if (sz > ToBitVector(bv, "bit-vector-resize")->size) {
     bv_new = LispAllocObject(kBitVector, sz);
     bv_new->bit_vector.size = sz;
     for (; i < bv->vector.size; ++i) {
       bv_new->bit_vector.self[i] = bv->bit_vector.self[i];
     }
-    memset(&bv_new->bit_vector.self[i], 0, sz - i);
+    memset(&bv_new->bit_vector.self[i], 0, (LispIndex)sz - i);
   } else {
     bv_new = bv;
   }
@@ -93,7 +93,7 @@ LispObject LispBitVectorResize(LispObject bv, LispIndex n) {
 }
 LispObject LispMakeInitializedBitVector(LispIndex n, int val) {
   LispObject bv;
-  LispIndex sz = ((n + 31) >> 5) * sizeof(uint32_t);
+  LispIndex sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
   bv = LispAllocObject(kBitVector, sz);
   bv->bit_vector.size = sz;
   memset(bv->bit_vector.self, val, sz);
@@ -102,7 +102,7 @@ LispObject LispMakeInitializedBitVector(LispIndex n, int val) {
 
 LispObject LispMakeBitVector(LispIndex n) {
   LispObject bv;
-  LispIndex sz = ((n + 31) >> 5) * sizeof(uint32_t);
+  LispIndex sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
   bv = LispAllocObject(kBitVector, sz);
   bv->bit_vector.size = sz;
   return bv;
@@ -131,7 +131,7 @@ uint32_t LispBitVectorGet(LispObject o, uint32_t n) {
 /* vector */
 LispObject LispMakeVector(LispIndex size) {
   LispObject vec;
-  vec = LispAllocObject(kVector, size - 1);
+  vec = LispAllocObject(kVector, (LispIndex)size - 1);
   vec->vector.size = size;
   vec->vector.fillp = 0;
   return vec;
@@ -156,7 +156,7 @@ LispObject LispVectorResize(LispObject v, LispIndex alloc_size) {
 }
 LispObject LispVectorPush(LispObject v, LispObject value) {
   LispObject vec;
-  vec = LispVectorResize(v, ToVector(v, "vector-push")->fillp + 1);
+  vec = LispVectorResize(v, (LispIndex)ToVector(v, "vector-push")->fillp + 1);
   vec->vector.self[vec->vector.fillp++] = value;
   return vec;
 }

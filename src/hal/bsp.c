@@ -68,8 +68,10 @@ void SystemInit(void) {
   /* Disable all interrupts and clear pending bits  */
   RCC->CIR = 0x009F0000U;
 
-  SCB->VTOR = FLASH_BASE |
-              VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM. */
+  /* Vector Table Relocation in Internal SRAM. */
+  extern int const g_pfnVectors[];
+  SCB->VTOR = (uint32_t)g_pfnVectors;
+  /* SRAM_BASE | VECT_TAB_OFFSET; */
 }
 
 /**
@@ -200,7 +202,7 @@ void SystemClock_Config(void) {
    */
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
-  /* /\* SysTick_IRQn interrupt configuration *\/ */
+  /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
@@ -264,7 +266,7 @@ void UART1_Init() {
 
 /* TODO: Check for errors */
 void UART1_SendStr(char *s) {
-  HAL_UART_Transmit(&huart1, (uint8_t *)s, strlen(s), 10);
+  HAL_UART_Transmit(&huart1, (uint8_t *)s, (uint16_t)strlen(s), 10);
   /* __HAL_UART_FLUSH_DRREGISTER(&huart1); */
 }
 /* TODO: Check for errors */

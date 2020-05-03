@@ -11,10 +11,10 @@
 #include "lispdoor/objects.h"
 
 /* print */
-void LispPrintObject(LispObject v, uint8_t princ);
+void LispPrintObject(LispObject v, bool princ);
 void LispPrintStr(char *str);
-void LispPrintStrN(char *s, uint16_t len);
-void LispPrintByte(uint8_t c);
+void LispPrintStrN(char *s, LispIndex len);
+void LispPrintByte(Byte c);
 
 /* error utilities  */
 void LispError(char *format);

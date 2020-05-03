@@ -401,7 +401,7 @@ LispObject LdPrint(LispNArg narg) {
   ArgCount("print", narg, 1);
   LispIndex i = stack_index - narg;
   for (; i < stack_index; ++i) {
-    LispPrintObject(stack[i], 0);
+    LispPrintObject(stack[i], false);
   }
   LispPrintStr("\n");
   return stack[stack_index - 1];
@@ -410,7 +410,7 @@ LispObject LdPrinc(LispNArg narg) {
   ArgCount("princ", narg, 1);
   LispIndex i = stack_index - narg;
   for (; i < stack_index; ++i) {
-    LispPrintObject(stack[i], 1);
+    LispPrintObject(stack[i], true);
   }
   LispPrintStr("\n");
   return stack[stack_index - 1];
@@ -422,7 +422,7 @@ LispObject LdRead(LispNArg narg) {
 LispObject LdError(LispNArg narg) {
   LispIndex i = stack_index - narg;
   for (; i < stack_index; ++i) {
-    LispPrintObject(stack[i], 1);
+    LispPrintObject(stack[i], true);
   }
   LispError("\n");
   return LISP_NIL;
@@ -474,7 +474,7 @@ LispObject LdPrintStack(LispNArg narg) {
     LispPrintStr(
         Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, i, lisp_number_base));
     LispPrintStr(". ");
-    LispPrintObject(stack[i], 0);
+    LispPrintObject(stack[i], false);
     LispPrintByte('\n');
     i++;
   }
@@ -483,7 +483,7 @@ LispObject LdPrintStack(LispNArg narg) {
 LispObject LdResetStack(LispNArg narg) {
   ArgCount("reset-stack", narg, 0);
   stack_index = 0;
-  LispPrintObject(LISP_T, 0);
+  LispPrintObject(LISP_T, false);
   LispPrintByte('\n');
   longjmp(LispEnv()->top_level, 1);
   return LISP_T;
@@ -494,19 +494,18 @@ LispObject LdSymbolName(LispNArg narg) {
 }
 LispObject LdPrintSymbolTree(LispNArg narg) {
   ArgCount("print-symbol-tree", narg, 0);
-  SymbolTreePrint2D((struct LispSymbol *)LispEnv()->symbol_table, 0);
+  SymbolTreePrint2D((struct LispSymbol *)LispEnv()->symbol_tree, 0);
   return LISP_T;
 }
 
 /* initialization */
 void LispInit(void) {
   stack_index = 0;
-  symbol_table_pool_here = symbol_table_pool;
   from_space = heap1;
   to_space = heap2;
   curr_heap = from_space;
   heap_limit = curr_heap + HEAP_SIZE;
-  LispEnv()->symbol_table = LispMakeSymbol("t");
+  LispEnv()->symbol_tree = LispMakeSymbol("t");
   LispEnv()->frame = LISP_NIL;
   LispEnv()->nvalues = 0;
 

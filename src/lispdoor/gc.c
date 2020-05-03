@@ -40,7 +40,7 @@ void *GcMalloc(LispIndex num_of_bytes) {
 }
 
 LispObject LispAllocObject(LispType t, LispIndex extra_size) {
-  static LispObject obj;
+  static LispObject obj = LISP_NIL;
   switch (t) {
     case kList:
       obj = (LispObject)GcMalloc(sizeof(struct LispCons));
@@ -59,8 +59,8 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
       obj = (LispObject)GcMalloc(sizeof(struct LispLongFloat));
       break;
     case kSymbol:
-      obj = (LispObject)SymMalloc(sizeof(struct LispSymbol) +
-                                  extra_size * sizeof(char) / sizeof(Byte));
+      obj = (LispObject)GcMalloc(sizeof(struct LispSymbol) +
+                                 extra_size * sizeof(char) / sizeof(Byte));
       break;
     case kCFunction:
       obj = (LispObject)GcMalloc(sizeof(struct LispCFunction));
@@ -87,18 +87,6 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
   obj->d.t = (uint8_t)t;
   return obj;
 }
-/* Symbol allocaction */
-void *SymMalloc(LispIndex num_of_bytes) {
-  void *ptr = symbol_table_pool_here;
-  symbol_table_pool_here += num_of_bytes;
-  symbol_table_pool_here =
-      (Byte *)(((LispFixNum)symbol_table_pool_here + (ALIGN_BITS - 1)) &
-               -ALIGN_BITS);
-  if (symbol_table_pool_here > symbol_table_pool + SYMBOL_TABLE_SIZE) {
-    LispError("symbol table overflow.");
-  }
-  return ptr;
-}
 
 // collector
 // ------------------------------------------------------------------
@@ -123,6 +111,18 @@ LispObject LispGcRelocate(LispObject o) {
         if (LISP_SYMBOL_GENSYMP(o)) {
           o_new = LdMakeGenSym(0);
           o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
+          LISP_SET_FORWARDED(o, o_new);
+        } else {
+          o_new = LispAllocObject(kSymbol, (LispIndex)strlen(o->symbol.name));
+          o_new->symbol.value = LispGcRelocate(o->symbol.value);
+          o_new->symbol.stype = o->symbol.stype;
+          strcpy(o_new->symbol.name, o->symbol.name);
+          /* dfs */
+          o_new->symbol.left =
+              (struct LispSymbol *)LispGcRelocate((LispObject)o->symbol.left);
+          o_new->symbol.right =
+              (struct LispSymbol *)LispGcRelocate((LispObject)o->symbol.right);
+          o_new->symbol.height = o->symbol.height;
           LISP_SET_FORWARDED(o, o_new);
         }
         break;
@@ -209,13 +209,8 @@ LispObject LispGcRelocate(LispObject o) {
   return o_new;
 }
 
-void TraceGlobals(struct LispSymbol *root) {
-  while (root != NULL) {
-    /* dfs */
-    root->value = LispGcRelocate(root->value);
-    TraceGlobals(root->left);
-    root = root->right;
-  }
+void LispGcTraceGlobals() {
+  LispEnv()->symbol_tree = LispGcRelocate(LispEnv()->symbol_tree);
 }
 
 void GC() {
@@ -232,8 +227,8 @@ void GC() {
   for (i = 0; i < (LispIndex)stack_index; i++) {
     stack[i] = LispGcRelocate(stack[i]);
   }
-  /* 2. symbol table */
-  TraceGlobals((struct LispSymbol *)LispEnv()->symbol_table);
+  /* 2. symbol tree */
+  LispGcTraceGlobals();
   /* 3. labels */
   rs = read_state;
   while (rs != NULL) {
@@ -263,7 +258,7 @@ void GC() {
                         *LispNumberOfObjectsAllocated(), 10));
   LispPrintStr(" live objects occupy ");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
-                        (LispFixNum)curr_heap - (LispFixNum)from_space, 10));
+                        (uintptr_t)curr_heap - (uintptr_t)from_space, 10));
   LispPrintStr("/");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
   LispPrintStr(" bytes.\n");

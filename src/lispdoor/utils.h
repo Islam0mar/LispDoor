@@ -13,8 +13,6 @@
 #include "lispdoor/print.h"
 
 #define NOTFOUND ((LispIndex)-1)
-#define UEOF ((uint32_t)EOF)
-#define EOF (-1)
 
 char *Int2Str(char *dest, LispIndex len, int32_t num, Byte base);
 char *Uint2Str(char *dest, LispIndex len, uint32_t num, Byte base);

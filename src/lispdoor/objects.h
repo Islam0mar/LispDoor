@@ -8,9 +8,11 @@
 #ifndef LISPDOOR_OBJECTS_H_INCLUDED
 #define LISPDOOR_OBJECTS_H_INCLUDED
 
+#include <ctype.h>
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 /*
@@ -21,7 +23,6 @@ typedef uint16_t LispIndex;
 typedef union LispUnion *LispObject;
 typedef uint8_t Byte;
 typedef char LispBaseChar;
-typedef LispObject LispReturn;
 typedef LispIndex LispNArg;
 typedef LispObject (*LispFunc)(LispNArg narg);
 
@@ -48,8 +49,8 @@ struct _LispEnv {
   /* toplevel jmp for errors*/
   jmp_buf top_level;
 
-  /* symbol_table */
-  LispObject symbol_table;
+  /* symbol_tree */
+  LispObject symbol_tree;
 
   /*   /\* Current stack frame *\/ */
   /* cl_object stack_frame; */
@@ -68,11 +69,6 @@ struct _LispEnv {
 
 LispEnvPtr LispEnv();
 
-/* jmp_buf env; */
-/* uint8_t state = 0; */
-/* extern uint32_t __ram_end__; */
-/* extern uint32_t __flash_end__; */
-/* FORTH_ASSERT(__ram_end__ == __flash_end__, "shit"); */
 #define LISP_NIL ((LispObject)kList)
 #define LISP_T ((LispObject)(kCharacter)) /* '\0' char isn't supported */
 #define LISP_UNBOUND (OBJ_NULL)

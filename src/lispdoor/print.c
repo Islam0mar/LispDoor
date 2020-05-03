@@ -6,10 +6,11 @@
  *
  */
 
-#include "print.h"
+#include "lispdoor/print.h"
 
 #include "hal/bsp.h"
 #include "lispdoor/memorylayout.h"
+#include "lispdoor/read.h"
 #include "lispdoor/utils.h"
 
 #define CONS_INDEX(c)                         \
@@ -31,7 +32,7 @@ void LispTypeError(char *fname, char *expected, LispObject got) {
   LispPrintStr(": error: expected ");
   LispPrintStr(expected);
   LispPrintStr(", got ");
-  LispPrintObject(got, 0);
+  LispPrintObject(got, false);
   LispError("\n");
 }
 
@@ -96,7 +97,7 @@ static void PrintSymbol(char *name) {
   }
 }
 
-static void DoPrint(LispObject o, int princ) {
+static void DoPrint(LispObject o, bool princ) {
   LispObject cd;
   LispIndex label;
   if (LISP_UNBOUNDP(o)) {
@@ -221,7 +222,7 @@ static void DoPrint(LispObject o, int princ) {
   }
 }
 
-void LispPrintObject(LispObject v, uint8_t princ) {
+void LispPrintObject(LispObject v, bool princ) {
   LabelTableClear(&print_conses);
   PUSH(v);
   PrintTraverse(v);
@@ -229,5 +230,5 @@ void LispPrintObject(LispObject v, uint8_t princ) {
   DoPrint(v, princ);
 }
 void LispPrintStr(char *str) { UART1_SendStr(str); }
-void LispPrintByte(uint8_t c) { UART1_SendByte(c); }
-void LispPrintStrN(char *s, uint16_t len) { UART1_SendStrN(s, len); }
+void LispPrintByte(Byte c) { UART1_SendByte(c); }
+void LispPrintStrN(char *s, LispIndex len) { UART1_SendStrN(s, len); }

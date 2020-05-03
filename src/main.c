@@ -15,9 +15,9 @@
 #include "lispdoor/print.h"
 #include "lispdoor/read.h"
 
-int main(int argc, char *argv[]) {
+int main() {
   LispObject expr;
-  stack_bottom = ((char *)&expr) - PROCESS_STACK_SIZE;
+  stack_bottom = ((Byte *)&expr) - PROCESS_STACK_SIZE;
   BspInit();
   LispInit();
   LispPrintStr("LispDoor Version: " VERSION_STRING "\n");
@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
                         *LispNumberOfObjectsAllocated(), 10));
   LispPrintStr(" live objects occupy ");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
-                        (LispFixNum)curr_heap - (LispFixNum)from_space, 10));
+                        (uintptr_t)curr_heap - (uintptr_t)from_space, 10));
   LispPrintStr("/");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
   LispPrintStr(" bytes.\n\n");
@@ -35,12 +35,7 @@ int main(int argc, char *argv[]) {
     LispPrintStr("> ");
     expr = ReadSexpr();
     expr = TopLevelEval(expr);
-    LispPrintObject(expr, 0);
-    /* LispPrintStr("****\n"); */
-    // print2DUtil((struct LispSymbol *)LispEnv()->symbol_table, 0);
-    /* LispPrintStr("----\n"); */
-    /* LispPrint(v); */
-    /* set(symbol("that"), v); */
+    LispPrintObject(expr, false);
     LispPrintStr("\n\n");
   }
   return 0;
