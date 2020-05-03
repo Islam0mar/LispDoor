@@ -1,16 +1,12 @@
 /**
- *   \file lispdoor.c
+ *   \file print.c
  *   \brief A Documented file.
  *
  *  Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
  *
  */
 
-/* used for wchar printing */
 #include "print.h"
-
-#include <locale.h>
-#include <wchar.h>
 
 #include "hal/bsp.h"
 #include "lispdoor/memorylayout.h"
@@ -221,7 +217,6 @@ static void DoPrint(LispObject o, int princ) {
       default:
         LispTypeError("print", "type within known range",
                       LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
-        assert(false);
     }
   }
 }

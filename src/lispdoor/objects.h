@@ -8,14 +8,9 @@
 #ifndef LISPDOOR_OBJECTS_H_INCLUDED
 #define LISPDOOR_OBJECTS_H_INCLUDED
 
-#include <assert.h>
-#include <ctype.h>
 #include <setjmp.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 /*

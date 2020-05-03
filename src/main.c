@@ -20,35 +20,28 @@ int main(int argc, char *argv[]) {
   stack_bottom = ((char *)&expr) - PROCESS_STACK_SIZE;
   BspInit();
   LispInit();
-  /* if (setjmp(toplevel)) { */
-  /*   SP = 0; */
-  /*   fprintf(stderr, "\n"); */
-  /*   if (infile) { */
-  /*     fprintf(stderr, "error loading file \"%s\"\n", infile); */
-  /*     infile = NULL; */
-  /*   } */
-  /*   goto repl; */
-  /* } */
-  printf("LispDoor Version: %s\n", VERSION_STRING);
-  printf("%u live objects occupy %u/%u bytes.\n\n",
-         *LispNumberOfObjectsAllocated(),
-         (LispFixNum)curr_heap - (LispFixNum)from_space, HEAP_SIZE);
+  LispPrintStr("LispDoor Version: " VERSION_STRING "\n");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        *LispNumberOfObjectsAllocated(), 10));
+  LispPrintStr(" live objects occupy ");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        (LispFixNum)curr_heap - (LispFixNum)from_space, 10));
+  LispPrintStr("/");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
+  LispPrintStr(" bytes.\n\n");
   setjmp(LispEnv()->top_level);
 
   while (1) {
-    printf("> ");
+    LispPrintStr("> ");
     expr = ReadSexpr();
     expr = TopLevelEval(expr);
-    if (feof(stdin)) {
-      break;
-    }
     LispPrintObject(expr, 0);
-    /* printf("****\n"); */
+    /* LispPrintStr("****\n"); */
     // print2DUtil((struct LispSymbol *)LispEnv()->symbol_table, 0);
-    /* printf("----\n"); */
+    /* LispPrintStr("----\n"); */
     /* LispPrint(v); */
     /* set(symbol("that"), v); */
-    printf("\n\n");
+    LispPrintStr("\n\n");
   }
   return 0;
 }

@@ -10,6 +10,7 @@
 #include "lispdoor/memorylayout.h"
 #include "lispdoor/objects.h"
 #include "lispdoor/print.h"
+#include "lispdoor/read.h"
 #include "lispdoor/symboltree.h"
 #include "lispdoor/utils.h"
 
@@ -416,12 +417,7 @@ LispObject LdPrinc(LispNArg narg) {
 }
 LispObject LdRead(LispNArg narg) {
   ArgCount("read", narg, 0);
-  return ReadSexpr(stdin);
-}
-LispObject LdExit(LispNArg narg) {
-  ArgCount("exit", narg, 0);
-  exit(0);
-  return LISP_NIL;
+  return ReadSexpr();
 }
 LispObject LdError(LispNArg narg) {
   LispIndex i = stack_index - narg;
@@ -549,23 +545,22 @@ void LispInit(void) {
   LISP_SET_FUNCTION("fixnump", LdFixNumP);
   LISP_SET_FUNCTION("+", LdAdd);
   LISP_SET_FUNCTION("-", LdSub);
-  /* LISP_SET_FUNCTION("*", LdMul); */
-  /* LISP_SET_FUNCTION("/", LdDiv); */
-  /* LISP_SET_FUNCTION("<", LdLt); */
-  /* LISP_SET_FUNCTION("not", LdNot); */
-  /* LISP_SET_FUNCTION("eval", LdEval); */
-  /* LISP_SET_FUNCTION("print", LdPrint); */
-  /* LISP_SET_FUNCTION("princ", LdPrinc); */
-  /* LISP_SET_FUNCTION("read", LdRead); */
-  /* LISP_SET_FUNCTION("exit", LdExit); */
-  /* LISP_SET_FUNCTION("error", LdError); */
-  /* LISP_SET_FUNCTION("prog1", LdProg1); */
-  /* LISP_SET_FUNCTION("assoc", LdAssoc); */
-  /* LISP_SET_FUNCTION("apply", LdApply); */
+  LISP_SET_FUNCTION("*", LdMul);
+  LISP_SET_FUNCTION("/", LdDiv);
+  LISP_SET_FUNCTION("<", LdLt);
+  LISP_SET_FUNCTION("not", LdNot);
+  LISP_SET_FUNCTION("eval", LdEval);
+  LISP_SET_FUNCTION("print", LdPrint);
+  LISP_SET_FUNCTION("princ", LdPrinc);
+  LISP_SET_FUNCTION("read", LdRead);
+  LISP_SET_FUNCTION("error", LdError);
+  LISP_SET_FUNCTION("prog1", LdProg1);
+  LISP_SET_FUNCTION("assoc", LdAssoc);
+  LISP_SET_FUNCTION("apply", LdApply);
 
-  /* LISP_SET_FUNCTION("print-stack", LdPrintStack); */
-  /* LISP_SET_FUNCTION("reset-stack", LdResetStack); */
-  /* LISP_SET_FUNCTION("gensym", LdMakeGenSym); */
-  /* LISP_SET_FUNCTION("symbol-name", LdSymbolName); */
-  /* LISP_SET_FUNCTION("print-symbol-tree", LdPrintSymbolTree); */
+  LISP_SET_FUNCTION("print-stack", LdPrintStack);
+  LISP_SET_FUNCTION("reset-stack", LdResetStack);
+  LISP_SET_FUNCTION("gensym", LdMakeGenSym);
+  LISP_SET_FUNCTION("symbol-name", LdSymbolName);
+  LISP_SET_FUNCTION("print-symbol-tree", LdPrintSymbolTree);
 }

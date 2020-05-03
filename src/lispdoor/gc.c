@@ -82,8 +82,7 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
                                sizeof(LispObject) / sizeof(Byte) * extra_size);
       break;
     default:
-      printf("\ttype = %d\n", t);
-      LispError("alloc botch.\n");
+      LispError("error: wrong object type, alloc botch.\n");
   }
   obj->d.t = (uint8_t)t;
   return obj;
@@ -205,7 +204,6 @@ LispObject LispGcRelocate(LispObject o) {
       default:
         LispTypeError("LispGcRelocate", "type within known range",
                       LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
-        assert(false);
     }
   }
   return o_new;
@@ -231,7 +229,6 @@ void GC() {
   /* trace number of objects allocated */
   *LispNumberOfObjectsAllocated() = 0;
   /* 1. stack values */
-  printf("gc1.stack = %d\n", stack_index);
   for (i = 0; i < (LispIndex)stack_index; i++) {
     stack[i] = LispGcRelocate(stack[i]);
   }
@@ -261,14 +258,19 @@ void GC() {
   /* 5. cons_flag */
   cons_flags = LispGcRelocate(cons_flags);
 
-  printf("gc: found %u live objects occupy %u/%u bytes.\n",
-         *LispNumberOfObjectsAllocated(),
-         (LispFixNum)curr_heap - (LispFixNum)to_space, HEAP_SIZE);
+  LispPrintStr("gc: found ");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        *LispNumberOfObjectsAllocated(), 10));
+  LispPrintStr(" live objects occupy ");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        (LispFixNum)curr_heap - (LispFixNum)from_space, 10));
+  LispPrintStr("/");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
+  LispPrintStr(" bytes.\n");
+
   temp = to_space;
   to_space = from_space;
   from_space = temp;
-
-  printf("gc2.stack = %d\n", stack_index);
 
   /* All data was live */
   if ((uintptr_t)curr_heap > (uintptr_t)heap_limit) {
