@@ -1,47 +1,79 @@
-/* File: startup_TM4C123GH6PM.c
- * Purpose: startup file for TM4C123GH6PM Cortex-M4 device.
- *          Should be used with GCC 'GNU Tools ARM Embedded'
- * Version: CMSIS 4.3.0
- * Date: 20 August 2015
+/*
+ *    \file startup_stm32f103_gnu.c
  *
- * Created from the CMSIS template for the specified device
- * Quantum Leaps, www.state-machine.com
+ * Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
  *
- * NOTE:
- * The function assert_failed defined at the end of this file defines
- * the error/assertion handling policy for the application and might
- * need to be customized for each project. This function is defined in
- * assembly to re-set the stack pointer, in case it is corrupted by the
- * time assert_failed is called.
+ * This file is part of LispDoor.
+ *
+ *     LispDoor is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 2 of the License, or
+ *     (at your option) any later version.
+ *
+ *     LispDoor is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with LispDoor.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * This file incorporates work covered by the following copyrights and
+ * permission notices:
+ *
+ *    Copyright (C) Quantum Leaps, LLC. All rights reserved.
+ *
+ *    This program is open source software: you can redistribute it and/or
+ *    modify it under the terms of the following MIT License (MIT).
+ *
+ *    Permission is hereby granted, free of charge, to any person obtaining a
+ *    copy of this software and associated documentation files (the "Software"),
+ *    to deal in the Software without restriction, including without limitation
+ *    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *    and/or sell copies of the Software, and to permit persons to whom the
+ *    Software is furnished to do so, subject to the following conditions:
+ *
+ *    The above copyright notice and this permission notice shall be included in
+ *    all copies or substantial portions of the Software.
+ *
+ *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ *    DEALINGS IN THE SOFTWARE.
+ *
+ *    Contact information:
+ *    http://www.state-machine.com
+ *    mailto:info@state-machine.com
+ *
+ *    Copyright (c) 2011 - 2014 ARM LIMITED
+ *
+ *   All rights reserved.
+ *   Redistribution and use in source and binary forms, with or without
+ *   modification, are permitted provided that the following conditions are met:
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *   - Neither the name of ARM nor the names of its contributors may be used
+ *     to endorse or promote products derived from this software without
+ *     specific prior written permission.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *   ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS AND CONTRIBUTORS BE
+ *   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *   POSSIBILITY OF SUCH DAMAGE.
  */
-/* Copyright (c) 2011 - 2014 ARM LIMITED
-
-   All rights reserved.
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
-   - Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-   - Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in the
-     documentation and/or other materials provided with the distribution.
-   - Neither the name of ARM nor the names of its contributors may be used
-     to endorse or promote products derived from this software without
-     specific prior written permission.
-   *
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-   ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS AND CONTRIBUTORS BE
-   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-   POSSIBILITY OF SUCH DAMAGE.
- ---------------------------------------------------------------------------*/
-
-#define BootRAM (int)0xF108F85F
 
 /* start and end of stack defined in the linker script ---------------------*/
 extern int __stack_start__;
@@ -153,61 +185,6 @@ __attribute__((section(".isr_vector"))) int const g_pfnVectors[] = {
     0,                        /* Reserved                        */
     (int)&PendSV_Handler,     /* The PendSV handler              */
     (int)&SysTick_Handler,    /* The SysTick handler             */
-
-    /*IRQ handlers... */
-    (int)&WWDG_IRQHandler,            /* The SysTick handler             */
-    (int)&PVD_IRQHandler,             /* The SysTick handler             */
-    (int)&TAMPER_IRQHandler,          /* The SysTick handler             */
-    (int)&RTC_IRQHandler,             /* The SysTick handler             */
-    (int)&FLASH_IRQHandler,           /* The SysTick handler             */
-    (int)&RCC_IRQHandler,             /* The SysTick handler             */
-    (int)&EXTI0_IRQHandler,           /* The SysTick handler             */
-    (int)&EXTI1_IRQHandler,           /* The SysTick handler             */
-    (int)&EXTI2_IRQHandler,           /* The SysTick handler             */
-    (int)&EXTI3_IRQHandler,           /* The SysTick handler             */
-    (int)&EXTI4_IRQHandler,           /* The SysTick handler             */
-    (int)&DMA1_Channel1_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel2_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel3_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel4_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel5_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel6_IRQHandler,   /* The SysTick handler             */
-    (int)&DMA1_Channel7_IRQHandler,   /* The SysTick handler             */
-    (int)&ADC1_2_IRQHandler,          /* The SysTick handler             */
-    (int)&USB_HP_CAN1_TX_IRQHandler,  /* The SysTick handler             */
-    (int)&USB_LP_CAN1_RX0_IRQHandler, /* The SysTick handler             */
-    (int)&CAN1_RX1_IRQHandler,        /* The SysTick handler             */
-    (int)&CAN1_SCE_IRQHandler,        /* The SysTick handler             */
-    (int)&EXTI9_5_IRQHandler,         /* The SysTick handler             */
-    (int)&TIM1_BRK_IRQHandler,        /* The SysTick handler             */
-    (int)&TIM1_UP_IRQHandler,         /* The SysTick handler             */
-    (int)&TIM1_TRG_COM_IRQHandler,    /* The SysTick handler             */
-    (int)&TIM1_CC_IRQHandler,         /* The SysTick handler             */
-    (int)&TIM2_IRQHandler,            /* The SysTick handler             */
-    (int)&TIM3_IRQHandler,            /* The SysTick handler             */
-    (int)&TIM4_IRQHandler,            /* The SysTick handler             */
-    (int)&I2C1_EV_IRQHandler,         /* The SysTick handler             */
-    (int)&I2C1_ER_IRQHandler,         /* The SysTick handler             */
-    (int)&I2C2_EV_IRQHandler,         /* The SysTick handler             */
-    (int)&I2C2_ER_IRQHandler,         /* The SysTick handler             */
-    (int)&SPI1_IRQHandler,            /* The SysTick handler             */
-    (int)&SPI2_IRQHandler,            /* The SysTick handler             */
-    (int)&USART1_IRQHandler,          /* The SysTick handler             */
-    (int)&USART2_IRQHandler,          /* The SysTick handler             */
-    (int)&USART3_IRQHandler,          /* The SysTick handler             */
-    (int)&EXTI15_10_IRQHandler,       /* The SysTick handler             */
-    (int)&RTC_Alarm_IRQHandler,       /* The SysTick handler             */
-    (int)&USBWakeUp_IRQHandler,       /* The SysTick handler             */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    0,                                /* Reserved                        */
-    BootRAM                           /* @0x108. This is for boot in RAM
-                                            mode for STM32F10x Medium
-                                                        Density devices. */
 };
 
 /* reset handler -----------------------------------------------------------*/
@@ -273,12 +250,20 @@ void MemManage_Handler(void) {
 }
 /*..........................................................................*/
 __attribute__((naked)) void HardFault_Handler(void);
-void HardFault_Handler(void) {
+/* void HardFault_Handler(void) { */
+/*   __asm volatile( */
+/*       "    ldr r0,=str_hrd\n\t" */
+/*       "    mov r1,#1\n\t" */
+/*       "    b assert_failed\n\t" */
+/*       "str_hrd: .asciz \"HardFault\"\n\t" */
+/*       ".align 2\n\t"); */
+/* } */
+
+void HardFault_Handler() {
+  // Hijack the process stack pointer to make backtrace work
   __asm volatile(
-      "    ldr r0,=str_hrd\n\t"
-      "    mov r1,#1\n\t"
-      "    b assert_failed\n\t"
-      "str_hrd: .asciz \"HardFault\"\n\t"
+      "    mrs r1,psp\n\t"
+      "    mov sp,r1\n\t"
       ".align 2\n\t");
 }
 /*..........................................................................*/

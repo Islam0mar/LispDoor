@@ -1,15 +1,86 @@
-/**
- *   \file bsp.c
- *   \brief board support package (BSP)
+/*
+ *    \file bsp.c
  *
- *  Detailed description
+ * Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
  *
+ * This file is part of LispDoor.
+ *
+ *     LispDoor is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 2 of the License, or
+ *     (at your option) any later version.
+ *
+ *     LispDoor is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with LispDoor.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * This file incorporates work covered by the following copyright and
+ * permission notice:
+ *
+ *    Copyright (C) Quantum Leaps, LLC. All rights reserved.
+ *
+ *    This program is open source software: you can redistribute it and/or
+ *    modify it under the terms of the following MIT License (MIT).
+ *
+ *    Permission is hereby granted, free of charge, to any person obtaining a
+ *    copy of this software and associated documentation files (the "Software"),
+ *    to deal in the Software without restriction, including without limitation
+ *    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *    and/or sell copies of the Software, and to permit persons to whom the
+ *    Software is furnished to do so, subject to the following conditions:
+ *
+ *    The above copyright notice and this permission notice shall be included in
+ *    all copies or substantial portions of the Software.
+ *
+ *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ *    DEALINGS IN THE SOFTWARE.
+ *
+ *    Contact information:
+ *    http://www.state-machine.com
+ *    mailto:info@state-machine.com
+ *
+ *    Copyright (c) 2011 - 2014 ARM LIMITED
+ *
+ *   All rights reserved.
+ *   Redistribution and use in source and binary forms, with or without
+ *   modification, are permitted provided that the following conditions are met:
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *   - Neither the name of ARM nor the names of its contributors may be used
+ *     to endorse or promote products derived from this software without
+ *     specific prior written permission.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *   ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS AND CONTRIBUTORS BE
+ *   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *   POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "hal/bsp.h"
 
 #include "lispdoor/memorylayout.h"
 #include "stm32f1xx_hal.h"
+
+#define BootRAM (int)0xF108F85F
 
 /*******************************************************************************
  *  Clock Definitions
@@ -43,7 +114,161 @@ void BspInit() {
   /* __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE); */
   __enable_irq();
 }
+/*  */
 
+/* end of stack defined in the linker script ---------------------*/
+extern int __stack_end__;
+
+/* Weak prototypes for error handlers --------------------------------------*/
+/**
+ * \note
+ * The function assert_failed defined at the end of this file defines
+ * the error/assertion handling policy for the application and might
+ * need to be customized for each project. This function is defined in
+ * assembly to avoid accessing the stack, which might be corrupted by
+ * the time assert_failed is called.
+ */
+__attribute__((naked)) void assert_failed(char const *module, int loc);
+
+/* Function prototypes -----------------------------------------------------*/
+void Default_Handler(void); /* Default empty handler */
+void Reset_Handler(void);   /* Reset Handler */
+void SystemInit(void);      /* CMSIS system initialization */
+
+/*----------------------------------------------------------------------------
+ * weak aliases for each Exception handler to the Default_Handler.
+ * Any function with the same name will override these definitions.
+ */
+/* Cortex-M Processor fault exceptions... */
+void NMI_Handler(void);
+void HardFault_Handler(void);
+void MemManage_Handler(void);
+void BusFault_Handler(void);
+void UsageFault_Handler(void);
+
+/* Cortex-M Processor non-fault exceptions... */
+void SVC_Handler(void);
+void DebugMon_Handler(void);
+void PendSV_Handler(void);
+void SysTick_Handler(void);
+
+/* external interrupts...   */
+void WWDG_IRQHandler(void);
+void PVD_IRQHandler(void);
+void TAMPER_IRQHandler(void);
+void RTC_IRQHandler(void);
+void FLASH_IRQHandler(void);
+void RCC_IRQHandler(void);
+void EXTI0_IRQHandler(void);
+void EXTI1_IRQHandler(void);
+void EXTI2_IRQHandler(void);
+void EXTI3_IRQHandler(void);
+void EXTI4_IRQHandler(void);
+void DMA1_Channel1_IRQHandler(void);
+void DMA1_Channel2_IRQHandler(void);
+void DMA1_Channel3_IRQHandler(void);
+void DMA1_Channel4_IRQHandler(void);
+void DMA1_Channel5_IRQHandler(void);
+void DMA1_Channel6_IRQHandler(void);
+void DMA1_Channel7_IRQHandler(void);
+void ADC1_2_IRQHandler(void);
+void USB_HP_CAN1_TX_IRQHandler(void);
+void USB_LP_CAN1_RX0_IRQHandler(void);
+void CAN1_RX1_IRQHandler(void);
+void CAN1_SCE_IRQHandler(void);
+void EXTI9_5_IRQHandler(void);
+void TIM1_BRK_IRQHandler(void);
+void TIM1_UP_IRQHandler(void);
+void TIM1_TRG_COM_IRQHandler(void);
+void TIM1_CC_IRQHandler(void);
+void TIM2_IRQHandler(void);
+void TIM3_IRQHandler(void);
+void TIM4_IRQHandler(void);
+void I2C1_EV_IRQHandler(void);
+void I2C1_ER_IRQHandler(void);
+void I2C2_EV_IRQHandler(void);
+void I2C2_ER_IRQHandler(void);
+void SPI1_IRQHandler(void);
+void SPI2_IRQHandler(void);
+void USART1_IRQHandler(void);
+void USART2_IRQHandler(void);
+void USART3_IRQHandler(void);
+void EXTI15_10_IRQHandler(void);
+void RTC_Alarm_IRQHandler(void);
+void USBWakeUp_IRQHandler(void);
+__attribute__((section(".my_vector"))) int vector_table[] = {
+    (int)&__stack_end__,      /* Top of Stack                    */
+    (int)&Reset_Handler,      /* Reset Handler                   */
+    (int)&NMI_Handler,        /* NMI Handler                     */
+    (int)&HardFault_Handler,  /* Hard Fault Handler              */
+    (int)&MemManage_Handler,  /* The MPU fault handler           */
+    (int)&BusFault_Handler,   /* The bus fault handler           */
+    (int)&UsageFault_Handler, /* The usage fault handler         */
+    0,                        /* Reserved                        */
+    0,                        /* Reserved                        */
+    0,                        /* Reserved                        */
+    0,                        /* Reserved                        */
+    (int)&SVC_Handler,        /* SVCall handler                  */
+    (int)&DebugMon_Handler,   /* Debug monitor handler           */
+    0,                        /* Reserved                        */
+    (int)&PendSV_Handler,     /* The PendSV handler              */
+    (int)&SysTick_Handler,    /* The SysTick handler             */
+
+    /*IRQ handlers... */
+    (int)&WWDG_IRQHandler,            /* The SysTick handler             */
+    (int)&PVD_IRQHandler,             /* The SysTick handler             */
+    (int)&TAMPER_IRQHandler,          /* The SysTick handler             */
+    (int)&RTC_IRQHandler,             /* The SysTick handler             */
+    (int)&FLASH_IRQHandler,           /* The SysTick handler             */
+    (int)&RCC_IRQHandler,             /* The SysTick handler             */
+    (int)&EXTI0_IRQHandler,           /* The SysTick handler             */
+    (int)&EXTI1_IRQHandler,           /* The SysTick handler             */
+    (int)&EXTI2_IRQHandler,           /* The SysTick handler             */
+    (int)&EXTI3_IRQHandler,           /* The SysTick handler             */
+    (int)&EXTI4_IRQHandler,           /* The SysTick handler             */
+    (int)&DMA1_Channel1_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel2_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel3_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel4_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel5_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel6_IRQHandler,   /* The SysTick handler             */
+    (int)&DMA1_Channel7_IRQHandler,   /* The SysTick handler             */
+    (int)&ADC1_2_IRQHandler,          /* The SysTick handler             */
+    (int)&USB_HP_CAN1_TX_IRQHandler,  /* The SysTick handler             */
+    (int)&USB_LP_CAN1_RX0_IRQHandler, /* The SysTick handler             */
+    (int)&CAN1_RX1_IRQHandler,        /* The SysTick handler             */
+    (int)&CAN1_SCE_IRQHandler,        /* The SysTick handler             */
+    (int)&EXTI9_5_IRQHandler,         /* The SysTick handler             */
+    (int)&TIM1_BRK_IRQHandler,        /* The SysTick handler             */
+    (int)&TIM1_UP_IRQHandler,         /* The SysTick handler             */
+    (int)&TIM1_TRG_COM_IRQHandler,    /* The SysTick handler             */
+    (int)&TIM1_CC_IRQHandler,         /* The SysTick handler             */
+    (int)&TIM2_IRQHandler,            /* The SysTick handler             */
+    (int)&TIM3_IRQHandler,            /* The SysTick handler             */
+    (int)&TIM4_IRQHandler,            /* The SysTick handler             */
+    (int)&I2C1_EV_IRQHandler,         /* The SysTick handler             */
+    (int)&I2C1_ER_IRQHandler,         /* The SysTick handler             */
+    (int)&I2C2_EV_IRQHandler,         /* The SysTick handler             */
+    (int)&I2C2_ER_IRQHandler,         /* The SysTick handler             */
+    (int)&SPI1_IRQHandler,            /* The SysTick handler             */
+    (int)&SPI2_IRQHandler,            /* The SysTick handler             */
+    (int)&USART1_IRQHandler,          /* The SysTick handler             */
+    (int)&USART2_IRQHandler,          /* The SysTick handler             */
+    (int)&USART3_IRQHandler,          /* The SysTick handler             */
+    (int)&EXTI15_10_IRQHandler,       /* The SysTick handler             */
+    (int)&RTC_Alarm_IRQHandler,       /* The SysTick handler             */
+    (int)&USBWakeUp_IRQHandler,       /* The SysTick handler             */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    0,                                /* Reserved                        */
+    BootRAM                           /* @0x108. This is for boot in RAM
+                                            mode for STM32F10x Medium
+                                                        Density devices. */
+};
 /**
  * @brief  Setup the microcontroller system
  *         Initialize the Embedded Flash Interface, the PLL and update the
@@ -69,9 +294,7 @@ void SystemInit(void) {
   RCC->CIR = 0x009F0000U;
 
   /* Vector Table Relocation in Internal SRAM. */
-  extern int const g_pfnVectors[];
-  SCB->VTOR = (uint32_t)g_pfnVectors;
-  /* SRAM_BASE | VECT_TAB_OFFSET; */
+  SCB->VTOR = (uint32_t)vector_table;
 }
 
 /**
@@ -328,7 +551,7 @@ void _Error_Handler(char *file, int line) {
  *
  * @return     return type
  */
-/* __attribute__((naked)) */ void assert_failed(char const *file, int line) {
+__attribute__((naked)) void assert_failed(char const *file, int line) {
   /* TBD: damage control */
   /* NVIC_SystemReset(); /\* reset the system *\/ */
   while (1) {

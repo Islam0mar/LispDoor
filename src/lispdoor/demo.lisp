@@ -1,5 +1,13 @@
-/*
- *    \file functions.h
+(defun abspath (pathname)
+  (merge-pathnames pathname))
+
+(defun update-file-copyrights (filename)
+  (let* ((lines-list (with-open-file (stream filename)
+                      (loop for line = (read-line stream nil)
+                            while line
+                            collect line)))
+         (lines lines-list)
+         (str2 "
  *
  * Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
  *
@@ -37,7 +45,7 @@
  *          endorse or promote products derived from this software without specific
  *          prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND
  *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
@@ -57,12 +65,28 @@
  *    License as published by the Free Software Foundation; either
  *    version 2 of the License, or (at your option) any later version.
  */
-#ifndef LISPDOOR_FUNCTIONS_H_INCLUDED
-#define LISPDOOR_FUNCTIONS_H_INCLUDED
+")
+         (str1 "/*
+ *    \\file "))
+    (setf str1 (concatenate 'string  str1 (file-namestring filename) str2))
+         
+    (with-open-file (stream filename
+                            :direction :output
+                            :if-does-not-exist :create
+                            :if-exists :supersede)
+      (loop for line in lines-list
+            for x from 1
+            while(or (search "/*" line) (search " *" line))
+            do
+               (setf lines (delete line lines)))
+      (write-string str1 stream)
+      (loop for line in lines
+            do
+               (write-line line stream)))))
 
-#include "lispdoor/eval.h"
-
-/* initialization */
-void LispInit(void);
-
-#endif /* LISPDOOR_FUNCTIONS_H_INCLUDED */
+(defun update-wildcards-folder-files-copyrights (wild-card)
+  
+  "doc"
+  (let ((files (directory wild-card)))
+    (print files)
+    (mapcar #'update-file-copyrights files)))

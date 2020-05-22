@@ -1,22 +1,52 @@
 /*
-*****************************************************************************
-**
-
-**  File        : LinkerScript.ld
-**
-**  Abstract    : Linker script for STM32F103C8Tx Device with
-**                64KByte FLASH, 20KByte RAM
-**
-**                Set heap size, stack size and stack location according
-**                to application requirements.
-**
-**                Set memory bank area and size if external memory is used.
-**
-**  Target      : STMicroelectronics STM32
-**
-**
-**  Distribution: The file is distributed as is, without any warranty
-**                of any kind.
+ *    \file STM32F103C8T6.ld
+ *
+ * Copyright (c) 2020 Islam Omar (io1131@fayoum.edu.eg)
+ *
+ * This file is part of LispDoor.
+ *
+ *     LispDoor is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 2 of the License, or
+ *     (at your option) any later version.
+ *
+ *     LispDoor is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with LispDoor.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * This file incorporates work covered by the following copyright and
+ * permission notice:
+ *
+ *    Copyright (C) Quantum Leaps, LLC. All rights reserved.
+ *
+ *    This program is open source software: you can redistribute it and/or
+ *    modify it under the terms of the following MIT License (MIT).
+ *
+ *    Permission is hereby granted, free of charge, to any person obtaining a
+ *    copy of this software and associated documentation files (the "Software"),
+ *    to deal in the Software without restriction, including without limitation
+ *    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *    and/or sell copies of the Software, and to permit persons to whom the
+ *    Software is furnished to do so, subject to the following conditions:
+ *
+ *    The above copyright notice and this permission notice shall be included in
+ *    all copies or substantial portions of the Software.
+ *
+ *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ *    DEALINGS IN THE SOFTWARE.
+ *
+ *    Contact information:
+ *    http://www.state-machine.com
+ *    mailto:info@state-machine.com
  */
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
@@ -37,6 +67,10 @@ HEAP_SIZE = 0;
 
 SECTIONS
 {
+   .isr_vector : {        /* the vector table */
+        KEEP(*(.isr_vector)) /* vector table */
+        . = ALIGN(4);
+    } >FLASH
     .text : {              /* code and constants */
         . = ALIGN(4);
         *(.text)           /* .text sections (code) */
@@ -87,14 +121,10 @@ SECTIONS
         __stack_end__ = .;
     } >RAM
 
-    .isr_vector : {        /* the vector table */
-        KEEP(*(.isr_vector)) /* vector table */
-        . = ALIGN(4);
-    } >RAM
-
     .data :  AT (_etext) {
         __data_load = LOADADDR (.data);
         __data_start = .;
+        *(.my_vector)
         *(.data)           /* .data sections */
         *(.data*)          /* .data* sections */
         . = ALIGN(4);
