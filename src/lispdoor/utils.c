@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -253,35 +255,19 @@ char *Uint2Str(char *dest, LispIndex len, uint32_t num, Byte base) {
 }
 
 void LabelTableInit(LabelTable *t, LispIndex n) {
-  t->n = 0;
-  t->maxsize = n;
-  t->items = (LispObject *)GcMalloc(n * sizeof(LispObject));
+  t->items = LispMakeVector(n);
 }
 
-void LabelTableRelocate(LabelTable *t) {
-  t->items = (LispObject *)GcMalloc(t->maxsize * sizeof(LispObject));
-}
-
-void LabelTableClear(LabelTable *t) { t->n = 0; }
+void LabelTableClear(LabelTable *t) { t->items->vector.fillp = 0; }
 
 void LabelTableInsert(LabelTable *t, LispObject item) {
-  LispObject *p;
-  if (t->n == t->maxsize) {
-    p = GcMalloc((t->maxsize * 2) * sizeof(LispObject));
-    LispIndex i;
-    for (i = 0; i < t->maxsize; ++i) {
-      p[i] = t->items[i];
-    }
-    t->items = p;
-    t->maxsize *= 2;
-  }
-  t->items[t->n++] = item;
+  LispVectorPush(t->items, item);
 }
 
 LispIndex LabelTableLookUp(LabelTable *t, LispObject item) {
   LispIndex i;
-  for (i = 0; i < t->n; i++) {
-    if (t->items[i] == item) {
+  for (i = 0; i < t->items->vector.size; i++) {
+    if (t->items->vector.self[i] == item) {
       return i;
     }
   }

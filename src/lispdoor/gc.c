@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -63,12 +65,17 @@
 #include "lispdoor/print.h"
 #include "lispdoor/symboltree.h"
 #include "lispdoor/utils.h"
-#include "stm32f1xx_hal.h"
 
-/* if lispobject is forwarded:
-   1. kForwarded is set
-   2. forward pointer is set after type value
-*/
+#define OBJ_INDEX(c)                                            \
+  ((LispSmallestStruct *)((LispFixNum)c & ~((LispFixNum)0x3)) - \
+   (LispSmallestStruct *)((LispFixNum)heap))
+
+#define CONS_P(c) LispBitVectorGet(gc_cons, (uint32_t)OBJ_INDEX(c))
+#define SET_CONS(c) LispBitVectorSet(gc_cons, (uint32_t)OBJ_INDEX(c), 1)
+#define UNSET_CONS(c) LispBitVectorSet(gc_cons, (uint32_t)OBJ_INDEX(c), 0)
+#define MARKED_P(c) LispBitVectorGet(gc_mark_bit, (uint32_t)OBJ_INDEX(c))
+#define MARK_OBJ(c) LispBitVectorSet(gc_mark_bit, (uint32_t)OBJ_INDEX(c), 1)
+#define UNMARK_OBJ(c) LispBitVectorSet(gc_mark_bit, (uint32_t)OBJ_INDEX(c), 0)
 
 LispIndex *LispNumberOfObjectsAllocated() {
   static LispIndex objects = 0;
@@ -78,18 +85,153 @@ LispIndex *LispNumberOfObjectsAllocated() {
 /* Data allocation */
 void *GcMalloc(LispIndex num_of_bytes) {
   void *ptr;
-  if (curr_heap + num_of_bytes > heap_limit) {
+  if ((LispFixNum)curr_heap + num_of_bytes > (LispFixNum)heap + HEAP_SIZE) {
     GC(0);
   }
-  if (curr_heap + num_of_bytes > heap_limit) {
+  if ((LispFixNum)curr_heap + num_of_bytes > (LispFixNum)heap + HEAP_SIZE) {
     LispError("no space to allocate new object.");
   }
   ptr = (void *)curr_heap;
-  curr_heap += num_of_bytes;
+  curr_heap = (Byte *)((LispFixNum)curr_heap + num_of_bytes);
   curr_heap =
       (Byte *)(((LispFixNum)curr_heap + (ALIGN_BITS - 1)) & -ALIGN_BITS);
   ++*LispNumberOfObjectsAllocated(); /* better readability */
   return ptr;
+}
+LispObject GcNextHeapObject(LispObject obj) {
+  LispIndex l = 0;
+  if (CONS_P(obj)) {
+    obj = LISP_PTR_CONS(obj);
+  }
+  LispType t = LISP_TYPE_OF(obj);
+  switch (t) {
+    case kList:
+      obj = (LispObject)LISP_CONS_PTR(obj);
+      l = sizeof(struct LispCons);
+      break;
+    case kSingleFloat:
+      l = sizeof(struct LispSingleFloat);
+      break;
+    case kDoubleFloat:
+      l = sizeof(struct LispDoubleFloat);
+      break;
+    case kLongFloat:
+      l = sizeof(struct LispLongFloat);
+      break;
+    case kSymbol:
+      if (LISP_GenSymP(obj)) {
+        l = sizeof(struct LispGenSym);
+      } else {
+        l = sizeof(struct LispSymbol) + strlen(obj->symbol.name) * sizeof(char);
+      }
+      break;
+    case kCFunction:
+      l = sizeof(struct LispCFunction);
+      break;
+    case kBitVector:
+      l = sizeof(struct LispBitVector) +
+          (sizeof(uint8_t) * (obj->bit_vector.size - 1));
+      break;
+    case kString:
+      l = sizeof(struct LispString) + (obj->string.size - 1) * sizeof(char);
+      break;
+    case kVector:
+      l = sizeof(struct LispVector) +
+          (sizeof(LispObject) * (obj->vector.size - 1));
+      break;
+    default:
+      LispError("error: Unkown object located at the heap!\n");
+      break;
+  }
+
+  obj = (LispObject)((LispFixNum)obj + l);
+  obj = (LispObject)(((LispFixNum)obj + (ALIGN_BITS - 1)) & -ALIGN_BITS);
+  if (CONS_P(obj)) {
+    obj = LISP_PTR_CONS(obj);
+  }
+  return obj;
+}
+
+void GcMarkObject(LispObject o) {
+  if (LISP_UNBOUNDP(o)) {
+  } else if (LISP_NULL(o)) {
+  } else if (o == LISP_T) {
+  } else {
+    LispType t = LISP_TYPE_OF(o);
+    switch (t) {
+      case kCharacter:
+      case kFixNum: {
+        break;
+      }
+      case kSymbol: {
+        MARK_OBJ(o);
+        if (!LISP_SYMBOL_GENSYMP(o)) {
+          GcMarkObject(o->symbol.value);
+        }
+        break;
+      }
+      case kSingleFloat:
+      case kDoubleFloat:
+      case kLongFloat:
+      case kCFunction:
+      case kBitVector:
+      case kString: {
+        MARK_OBJ(o);
+        break;
+      }
+      case kVector: {
+        MARK_OBJ(o);
+        LispIndex i = 0;
+        for (i = 0; i < o->vector.fillp; ++i) {
+          GcMarkObject((o->vector.self[i]));
+        }
+        break;
+      }
+      case kList: {
+        LispObject a, d;
+        do {
+          MARK_OBJ(o);
+          gc_offset->vector.self[OBJ_INDEX(o)] = o;
+          a = LISP_CONS_CAR(o);
+          d = LISP_CONS_CDR(o);
+          GcMarkObject(a);
+          o = d;
+        } while (LISP_ConsP(o));
+        GcMarkObject(o);
+        break;
+      }
+      default:
+        LispTypeError("GcMarkObject", "type within known range",
+                      LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
+        break;
+    }
+  }
+}
+
+void GcMarkLiveObjects() {
+  LispIndex i;
+  ReadState *rs;
+  /* 1. stack values */
+  for (i = 0; i < (LispIndex)stack_index; i++) {
+    GcMarkObject(stack[i]);
+  }
+  /* 2. symbols */
+  GcMarkObject(LispEnv()->symbols);
+  /* 3. labels */
+  rs = read_state;
+  while (rs != NULL) {
+    GcMarkObject(rs->exprs.items);
+    GcMarkObject(rs->labels.items);
+    rs = rs->prev;
+  }
+  /* 4. print_conses */
+  GcMarkObject(print_conses.items);
+
+  /* 5. cons_flag */
+  GcMarkObject(cons_flags);
+  GcMarkObject(gc_cons);
+  GcMarkObject(gc_offset);
+  GcMarkObject(gc_mark_bit);
 }
 
 LispObject LispAllocObject(LispType t, LispIndex extra_size) {
@@ -97,6 +239,7 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
   switch (t) {
     case kList:
       obj = (LispObject)GcMalloc(sizeof(struct LispCons));
+      SET_CONS(obj);
       return LISP_PTR_CONS(obj);
     case kCharacter:
       return LISP_MAKE_CHARACTER(955); /* Immediate character */
@@ -113,26 +256,26 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
       break;
     case kSymbol:
       obj = (LispObject)GcMalloc(sizeof(struct LispSymbol) +
-                                 extra_size * sizeof(char) / sizeof(Byte));
+                                 extra_size * sizeof(char));
       break;
     case kCFunction:
       obj = (LispObject)GcMalloc(sizeof(struct LispCFunction));
       break;
     case kBitVector:
-      obj = (LispObject)GcMalloc(sizeof(struct LispBitVector) + extra_size);
+      obj = (LispObject)GcMalloc(sizeof(struct LispBitVector) +
+                                 extra_size * sizeof(uint8_t));
       break;
     case kString:
       obj = (LispObject)GcMalloc(sizeof(struct LispString) +
-                                 extra_size * sizeof(char) / sizeof(Byte));
+                                 extra_size * sizeof(char));
       break;
     case kGenSym:
       t = kSymbol;
       obj = (LispObject)GcMalloc(sizeof(struct LispGenSym));
       break;
     case kVector:
-      obj =
-          (LispObject)GcMalloc(sizeof(struct LispVector) +
-                               sizeof(LispObject) / sizeof(Byte) * extra_size);
+      obj = (LispObject)GcMalloc(sizeof(struct LispVector) +
+                                 sizeof(LispObject) * extra_size);
       break;
     default:
       LispError("error: wrong object type, alloc botch.\n");
@@ -143,12 +286,32 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
 
 // collector
 // ------------------------------------------------------------------
-LispObject LispGcRelocate(LispObject o) {
+void GcComputeLocations() {
+  LispIndex offset = 0;
+  LispObject curr = (LispObject)heap, prev;
+  while ((uintptr_t)curr + 1 < (uintptr_t)curr_heap) {
+    if (MARKED_P(curr)) {
+      gc_offset->vector.self[OBJ_INDEX(curr)] = LISP_MAKE_FIXNUM(offset);
+      curr = GcNextHeapObject(curr);
+    } else {
+      (*LispNumberOfObjectsAllocated())--;
+      prev = curr;
+      curr = GcNextHeapObject(curr);
+      /* Avoid cons immediate type bit */
+      offset += ((LispFixNum)curr & ~0x3) - ((LispFixNum)prev & ~0x3);
+    }
+  }
+  heap_free = (Byte *)((LispFixNum)curr_heap - offset);
+}
+
+LispObject GcForwardChildObject(LispObject o) {
   LispObject o_new = o;
-  LispIndex size = 0;
   if (LISP_UNBOUNDP(o)) {
   } else if (LISP_NULL(o)) {
   } else if (o == LISP_T) {
+  } else if ((((LispFixNum)o & 3) < 2) && !MARKED_P(o)) {
+    /* avoid checking char and fixnum */
+    o_new = gc_offset->vector.self[OBJ_INDEX(o)];
   } else {
     LispType t = LISP_TYPE_OF(o);
     switch (t) {
@@ -156,175 +319,167 @@ LispObject LispGcRelocate(LispObject o) {
       case kFixNum: {
         break;
       }
-      case kForwarded: {
-        o_new = LISP_FORWARD(o);
-        break;
-      }
-      case kSymbol: {
-        if (LISP_SYMBOL_GENSYMP(o)) {
-          o_new = LdMakeGenSym(0);
-          o_new->gen_sym.id = o->gen_sym.id; /* useful for debugging */
-          LISP_SET_FORWARDED(o, o_new);
-        } else {
-          o_new = LispAllocObject(kSymbol, (LispIndex)strlen(o->symbol.name));
-          o_new->symbol.stype = o->symbol.stype;
-          strcpy(o_new->symbol.name, o->symbol.name);
-          o_new->symbol.height = o->symbol.height;
-          /* dfs */
-          LispObject left = (LispObject)o->symbol.left,
-                     right = (LispObject)o->symbol.right,
-                     value = o->symbol.value;
-
-          LISP_SET_FORWARDED(o, o_new);
-          o_new->symbol.value = LispGcRelocate(value);
-          o_new->symbol.left = (struct LispSymbol *)LispGcRelocate(left);
-          o_new->symbol.right = (struct LispSymbol *)LispGcRelocate(right);
-        }
-        break;
-      }
-      case kSingleFloat: {
-        o_new = LispMakeSingleFloat(o->single_float.value);
-        LISP_SET_FORWARDED(o, o_new);
-        break;
-      }
-      case kDoubleFloat: {
-        o_new = LispMakeDoubleFloat(o->double_float.value);
-        LISP_SET_FORWARDED(o, o_new);
-        break;
-      }
-      case kLongFloat: {
-        o_new = LispMakeLongFloat(o->long_float.value);
-        LISP_SET_FORWARDED(o, o_new);
-        break;
-      }
-      case kCFunction: {
-        if (LISP_CFUNCTION_SPECIALP(o)) {
-          o_new = LispMakeCFunctionSpecial(o->cfun.name, o->cfun.f);
-        } else {
-          o_new = LispMakeCFunction(o->cfun.name, o->cfun.f);
-        }
-        LISP_SET_FORWARDED(o, o_new);
-        break;
-      }
-      case kBitVector: {
-        size = o->bit_vector.size;
-        o_new = LispMakeBitVectorExactSize(size);
-        memcpy(o_new->bit_vector.self, o->bit_vector.self, size);
-        LISP_SET_FORWARDED(o, o_new);
-        break;
-      }
-      case kVector: {
-        size = o->vector.size;
-        o_new = LispMakeVector(size);
-        o_new->vector.fillp = o->vector.fillp;
-        LISP_SET_FORWARDED(o, o_new);
-        LispObject *self = o->vector.self;
-        LispIndex i = 0;
-        for (i = 0; i < size; ++i) {
-          o_new->vector.self[i] = LispGcRelocate(self[i]);
-        }
-        break;
-      }
+      case kSymbol:
+      case kSingleFloat:
+      case kDoubleFloat:
+      case kLongFloat:
+      case kCFunction:
+      case kBitVector:
+      case kVector:
       case kString: {
-        o_new = LispMakeString(o->string.self);
-        LISP_SET_FORWARDED(o, o_new);
+        o_new = (LispObject)((LispFixNum)o -
+                             LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o)]));
         break;
       }
       case kList: {
-        LispObject a, d, nc, *pcdr;
-        bool forwarded_p = false;
-        // iterative implementation allows arbitrarily long cons chains
-        pcdr = &o_new;
-        do {
-          /* forwarded cons */
-          a = LISP_CONS_CAR(o);
-          if (a == LISP_UNBOUND) {
-            d = LISP_CONS_CDR(o);
-            forwarded_p = true;
-            break;
-          }
-          *pcdr = nc = MakeCons();
-          d = LISP_CONS_CDR(o);
-          LISP_CONS_CAR(o) = LISP_UNBOUND;
-          LISP_CONS_CDR(o) = nc;
-          LISP_CONS_CAR(nc) = LispGcRelocate(a);
-          pcdr = &LISP_CONS_CDR(nc);
-          o = d;
-        } while (LISP_ConsP(o));
-        if (!forwarded_p) {
-          d = LispGcRelocate(d);
-        }
-        *pcdr = d;
+        o_new =
+            LISP_PTR_CONS((LispFixNum)LISP_CONS_PTR(o) -
+                          LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o)]));
         break;
       }
       default:
-        LispTypeError("LispGcRelocate", "type within known range",
+        LispTypeError("GcForwardChildObject", "type within known range",
                       LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
+        break;
     }
   }
   return o_new;
 }
-
-void LispGcTraceGlobals() {
-  LispEnv()->symbol_tree = LispGcRelocate(LispEnv()->symbol_tree);
+LispObject GcForwardObject(LispObject o) {
+  LispObject o_new = o;
+  if (LISP_UNBOUNDP(o)) {
+  } else if (LISP_NULL(o)) {
+  } else if (o == LISP_T) {
+  } else if ((((LispFixNum)o & 3) < 2) && !MARKED_P(o)) {
+    /* avoid checking char and fixnum */
+    o_new = gc_offset->vector.self[OBJ_INDEX(o)];
+  } else {
+    LispType t = LISP_TYPE_OF(o);
+    switch (t) {
+      case kCharacter:
+      case kFixNum: {
+        break;
+      }
+      case kSymbol: {
+        if (!LISP_SYMBOL_GENSYMP(o)) {
+          o->symbol.value = GcForwardChildObject(o->symbol.value);
+        }
+        o_new = (LispObject)((LispFixNum)o -
+                             LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o)]));
+        break;
+      }
+      case kSingleFloat:
+      case kDoubleFloat:
+      case kLongFloat:
+      case kCFunction:
+      case kBitVector:
+      case kString: {
+        o_new =
+            (LispObject)((LispFixNum)o_new -
+                         LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o_new)]));
+        break;
+      }
+      case kVector: {
+        LispIndex i = 0;
+        for (i = 0; i < o->vector.fillp; ++i) {
+          o->vector.self[i] = GcForwardChildObject(o->vector.self[i]);
+        }
+        o_new =
+            (LispObject)((LispFixNum)o_new -
+                         LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o_new)]));
+        break;
+      }
+      case kList: {
+        LISP_CONS_CAR(o) = GcForwardChildObject(LISP_CONS_CAR(o));
+        LISP_CONS_CDR(o) = GcForwardChildObject(LISP_CONS_CDR(o));
+        o_new =
+            LISP_PTR_CONS((LispFixNum)LISP_CONS_PTR(o) -
+                          LISP_FIXNUM(gc_offset->vector.self[OBJ_INDEX(o)]));
+        break;
+      }
+      default:
+        LispTypeError("GcForwardObject", "type within known range",
+                      LISP_MAKE_FIXNUM(LISP_TYPE_OF(o)));
+        break;
+    }
+    UNMARK_OBJ(o);
+    gc_offset->vector.self[OBJ_INDEX(o)] = o_new;
+  }
+  return o_new;
 }
 
-void GC() {
-  Byte *temp;
-  LispIndex i;
+void GcUpdateObjectsRelocate() {
+  LispIndex i = 0;
+  LispObject curr = (LispObject)heap, next;
   ReadState *rs;
-  LispObject *items;
-
-  curr_heap = to_space;
-  heap_limit = curr_heap + HEAP_SIZE;
-  /* trace number of objects allocated */
-  *LispNumberOfObjectsAllocated() = 0;
+  while ((uintptr_t)curr + 1 < (uintptr_t)curr_heap) {
+    next = GcNextHeapObject(curr);
+    if (MARKED_P(curr)) {
+      LispObject new_loc = GcForwardObject(curr);
+      if (CONS_P(curr)) {
+        UNSET_CONS(curr);
+        SET_CONS(new_loc);
+        new_loc = (LispObject)LISP_CONS_PTR(new_loc);
+        curr = (LispObject)LISP_CONS_PTR(curr);
+      }
+      memmove(new_loc, curr,
+              (size_t)(((LispFixNum)next & ~0x3) - (LispFixNum)curr));
+    } else {
+      if (CONS_P(curr)) {
+        UNSET_CONS(curr);
+      }
+    }
+    curr = next;
+  }
   /* 1. stack values */
   for (i = 0; i < (LispIndex)stack_index; i++) {
-    stack[i] = LispGcRelocate(stack[i]);
+    stack[i] = GcForwardChildObject(stack[i]);
   }
-  /* 2. symbol tree */
-  LispGcTraceGlobals();
+  /* 2. symbols */
+  LispEnv()->symbols = GcForwardChildObject(LispEnv()->symbols);
   /* 3. labels */
   rs = read_state;
   while (rs != NULL) {
-    items = rs->exprs.items;
-    LabelTableRelocate(&rs->exprs);
-    for (i = 0; i < rs->exprs.n; i++) {
-      rs->exprs.items[i] = LispGcRelocate(items[i]);
-    }
-    items = rs->labels.items;
-    LabelTableRelocate(&rs->labels);
-    for (i = 0; i < rs->labels.n; i++) {
-      rs->labels.items[i] = LispGcRelocate(items[i]);
-    }
+    rs->exprs.items = GcForwardChildObject(rs->exprs.items);
+    rs->labels.items = GcForwardChildObject(rs->labels.items);
     rs = rs->prev;
   }
   /* 4. print_conses */
-  items = print_conses.items;
-  LabelTableRelocate(&print_conses);
-  for (i = 0; i < print_conses.n; i++) {
-    print_conses.items[i] = LispGcRelocate(items[i]);
-  }
+  print_conses.items = GcForwardChildObject(print_conses.items);
+
   /* 5. cons_flag */
-  cons_flags = LispGcRelocate(cons_flags);
+  cons_flags = GcForwardChildObject(cons_flags);
+  /* GcMarkObject(gc_cons); */
+  /* GcMarkObject(gc_offset); */
+  /* GcMarkObject(gc_mark_bit); */
+}
+
+void GcCompact() {
+  GcComputeLocations();
+  GcUpdateObjectsRelocate();
+}
+
+void GC() {
+  memset(gc_mark_bit->bit_vector.self, 0, gc_mark_bit->bit_vector.size);
+  memset(gc_offset->vector.self, 0,
+         sizeof(LispObject) * gc_offset->vector.size);
+  GcMarkLiveObjects();
+  GcCompact();
+  curr_heap = heap_free;
 
   LispPrintStr("gc: found ");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
                         *LispNumberOfObjectsAllocated(), 10));
   LispPrintStr(" live objects occupy ");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
-                        (uintptr_t)curr_heap - (uintptr_t)to_space, 10));
+                        (uint32_t)((LispFixNum)curr_heap - (LispFixNum)heap),
+                        10));
   LispPrintStr("/");
   LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
   LispPrintStr(" bytes.\n");
 
-  temp = to_space;
-  to_space = from_space;
-  from_space = temp;
-
   /* All data was live */
-  if ((uintptr_t)curr_heap > (uintptr_t)heap_limit) {
+  if ((LispFixNum)curr_heap >= (LispFixNum)heap + HEAP_SIZE) {
     LispError("objects space overflow.");
   }
 }

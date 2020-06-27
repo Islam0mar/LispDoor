@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -65,18 +67,15 @@
 /* Lisp memory model */
 #define ALIGN_BITS (LispIndex)4
 #define N_STACK 512U
-#define HEAP_SIZE (LispIndex)(6 * 1024 + 380) /* bytes */
+#define HEAP_SIZE (LispIndex)(6 * 1024 + 384) /* bytes */
 #define TIB_SIZE \
   256U /* Should be divisable by 2 (see HAL_UART_RxCpltCallback)*/
 #define SCRATCH_PAD_SIZE 128U
 
 /* 1. memory pool */
-extern Byte *from_space;
-extern Byte *to_space;
 extern Byte *curr_heap;
-extern Byte *heap_limit;
-extern Byte heap1[HEAP_SIZE];
-extern Byte heap2[HEAP_SIZE];
+extern Byte *heap_free;
+extern Byte heap[HEAP_SIZE];
 /* 2. stack */
 extern Byte *stack_bottom;
 extern LispObject stack[N_STACK];
@@ -107,5 +106,9 @@ extern LispObject cons_flags;
 extern LabelTable print_conses;
 /* 8. used for reading labels */
 extern ReadState *read_state;
+/* 9. mark-compacting gc */
+extern LispObject gc_mark_bit;
+extern LispObject gc_offset;
+extern LispObject gc_cons;
 
 #endif /* LISPDOOR_MEMORYLAYOUT_H_INCLUDED */

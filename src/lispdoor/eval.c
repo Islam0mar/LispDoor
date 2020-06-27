@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -66,13 +68,11 @@
 #include "lispdoor/utils.h"
 
 LispObject LispApply(LispObject fun, LispObject arg_list) {
-  LispObject v, ans, *arg_syms, sym, *body, *frame, *f;
+  LispObject v, ans, *arg_syms, sym, *body, *frame;
   LispIndex saved_stack_index = stack_index, nargs;
   LispEnvPtr penv = LispEnv();
   /* protect from GC */
   PUSH(penv->frame);
-  PUSH(fun);
-  f = &stack[stack_index - 1];
   PUSH(arg_list);
   PUSH(LISP_NIL);
   frame = &stack[stack_index - 1];
@@ -88,15 +88,16 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     nargs = stack_index - saved_stack_index - 4;
     /* call function */
     ans = (fun->cfun.f)(nargs);
-  } else if (LISP_ConsP(*f) && (LISP_CONS_CAR(*f) == LispMakeSymbol("lambda") ||
-                                LISP_CONS_CAR(*f) == LispMakeSymbol("label") ||
-                                LISP_CONS_CAR(*f) == LispMakeSymbol("macro"))) {
+  } else if (LISP_ConsP(fun) && LISP_SymbolP(LISP_CONS_CAR(fun)) &&
+             (strcmp(LISP_CONS_CAR(fun)->symbol.name, "lambda") == 0 ||
+              strcmp(LISP_CONS_CAR(fun)->symbol.name, "macro") == 0 ||
+              strcmp(LISP_CONS_CAR(fun)->symbol.name, "label") == 0)) {
     bool macro_p =
-        (LISP_CONS_CAR(*f) == LispMakeSymbol("macro")) ? true : false;
+        (strcmp(LISP_CONS_CAR(fun)->symbol.name, "macro") == 0) ? true : false;
 
     /* defined func */
     /* Lambda closure (lambda args body . frame) */
-    v = LISP_CONS_CDR(*f);
+    v = LISP_CONS_CDR(fun);
 
     PUSH(LISP_CONS_CAR(v));
     arg_syms = &stack[stack_index - 1];
@@ -105,7 +106,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
     *frame = LISP_CONS_CDR(LISP_CONS_CDR(v));
 
     /* 1. extend frame: bind args */
-    v = stack[saved_stack_index + 2];
+    v = arg_list;
     while (LISP_ConsP(v)) {
       if (!LISP_ConsP(*arg_syms)) {
         if (LISP_NULL(*arg_syms)) {
@@ -120,13 +121,13 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
       v = LISP_CONS_CAR(v);
       *frame = cons_(cons(sym, v), *frame);
       *arg_syms = LISP_CONS_CDR(*arg_syms);
-      v = stack[saved_stack_index + 2] =
-          LISP_CONS_CDR(stack[saved_stack_index + 2]);
+      v = stack[saved_stack_index + 1] =
+          LISP_CONS_CDR(stack[saved_stack_index + 1]);
     }
     /* rest args */
     if (!LISP_NULL(*arg_syms)) {
       if (LISP_SymbolP(*arg_syms)) {
-        *frame = cons_(cons(*arg_syms, stack[saved_stack_index + 2]), *frame);
+        *frame = cons_(cons(*arg_syms, stack[saved_stack_index + 1]), *frame);
       } else if (LISP_ConsP(*arg_syms)) {
         LispError("apply: error: too few arguments\n");
       }
@@ -206,7 +207,7 @@ EVAL_TOP:
       PUSH(func);
       nargs = stack_index;
       /* builtin func/special */
-      if (LISP_CFunctionP(*fun)) {
+      if (LISP_CFunctionP(func)) {
         v = stack[saved_stack_index];
         /* evaluate argument list, placing arguments on stack */
         while (LISP_ConsP(v)) {
@@ -219,16 +220,17 @@ EVAL_TOP:
         nargs = stack_index - nargs;
         /* call function */
         ans = ((*fun)->cfun.f)(nargs);
-      } else if (LISP_ConsP(*fun) &&
-                 (LISP_CONS_CAR(*fun) == LispMakeSymbol("lambda") ||
-                  LISP_CONS_CAR(*fun) == LispMakeSymbol("label") ||
-                  LISP_CONS_CAR(*fun) == LispMakeSymbol("macro"))) {
-        bool macro_p =
-            (LISP_CONS_CAR(*fun) == LispMakeSymbol("macro")) ? true : false;
+      } else if (LISP_ConsP(func) && LISP_SymbolP(LISP_CONS_CAR(func)) &&
+                 (strcmp(LISP_CONS_CAR(func)->symbol.name, "lambda") == 0 ||
+                  strcmp(LISP_CONS_CAR(func)->symbol.name, "macro") == 0 ||
+                  strcmp(LISP_CONS_CAR(func)->symbol.name, "label") == 0)) {
+        bool macro_p = (strcmp(LISP_CONS_CAR(func)->symbol.name, "macro") == 0)
+                           ? true
+                           : false;
 
         /* defined func */
         /* Lambda closure (lambda args body . frame) */
-        v = LISP_CONS_CDR(*fun);
+        v = LISP_CONS_CDR(func);
 
         PUSH(LISP_CONS_CAR_SAFE(v));
         arg_syms = &stack[stack_index - 1];

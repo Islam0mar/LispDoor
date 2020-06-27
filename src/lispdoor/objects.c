@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -128,57 +130,63 @@ LispObject LispMakeString(char *str) {
 }
 
 /* bit-vector */
+#define BIT_VECTOR_SIZE(n) ((LispIndex)((n + 7) >> 3));
 LispObject LispBitVectorResize(LispObject bv, LispIndex n) {
   LispObject bv_new;
-  LispIndex i = 0, sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
+  LispIndex i = 0, sz = BIT_VECTOR_SIZE(n);
   if (sz > ToBitVector(bv, "bit-vector-resize")->size) {
-    bv_new = LispAllocObject(kBitVector, sz);
+    bv_new = LispAllocObject(kBitVector, sz - 1);
     bv_new->bit_vector.size = sz;
     for (; i < bv->vector.size; ++i) {
       bv_new->bit_vector.self[i] = bv->bit_vector.self[i];
     }
-    memset(&bv_new->bit_vector.self[i], 0, (LispIndex)sz - i);
+    for (; i < sz; ++i) {
+      bv_new->bit_vector.self[i] = 0;
+    }
   } else {
     bv_new = bv;
   }
   return bv_new;
 }
-LispObject LispMakeInitializedBitVector(LispIndex n, int val) {
+LispObject LispMakeInitializedBitVector(LispIndex n, uint8_t val) {
   LispObject bv;
-  LispIndex sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
-  bv = LispAllocObject(kBitVector, sz);
+  LispIndex sz = BIT_VECTOR_SIZE(n);
+  LispIndex i;
+  bv = LispAllocObject(kBitVector, sz - 1);
   bv->bit_vector.size = sz;
-  memset(bv->bit_vector.self, val, sz);
+  for (i = 0; i < sz; ++i) {
+    bv->bit_vector.self[i] = val;
+  }
   return bv;
 }
 
 LispObject LispMakeBitVector(LispIndex n) {
   LispObject bv;
-  LispIndex sz = (LispIndex)((n + 31) >> 5) * sizeof(uint32_t);
-  bv = LispAllocObject(kBitVector, sz);
+  LispIndex sz = BIT_VECTOR_SIZE(n);
+  bv = LispAllocObject(kBitVector, sz - 1);
   bv->bit_vector.size = sz;
   return bv;
 }
 LispObject LispMakeBitVectorExactSize(LispIndex n) {
   LispObject bv;
   LispIndex sz = n;
-  bv = LispAllocObject(kBitVector, sz);
+  bv = LispAllocObject(kBitVector, sz - 1);
   bv->bit_vector.size = sz;
   return bv;
 }
 
-void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c) {
-  uint32_t *b = ToBitVector(o, "bit-vector-set")->self;
+void LispBitVectorSet(LispObject o, uint32_t n, uint8_t c) {
+  uint8_t *b = ToBitVector(o, "bit-vector-set")->self;
   if (c)
-    b[n >> 5] |= (uint32_t)(1 << (n & 31));
+    b[n >> 3] |= (uint8_t)(1 << (n & 7));
   else
-    b[n >> 5] &= (uint32_t) ~(1 << (n & 31));
+    b[n >> 3] &= (uint8_t) ~(1 << (n & 7));
 }
 
-uint32_t LispBitVectorGet(LispObject o, uint32_t n) {
-  uint32_t *b = ToBitVector(o, "bit-vector-get")->self;
+uint8_t LispBitVectorGet(LispObject o, uint32_t n) {
+  uint8_t *b = ToBitVector(o, "bit-vector-get")->self;
 
-  return b[n >> 5] & (uint32_t)(1 << (n & 31));
+  return b[n >> 3] & (uint8_t)(1 << (n & 7));
 }
 /* vector */
 LispObject LispMakeVector(LispIndex size) {
@@ -195,7 +203,7 @@ LispObject LispVectorResize(LispObject v, LispIndex alloc_size) {
     LispIndex new_size = (alloc_size > v->vector.size * 2u)
                              ? alloc_size
                              : ((alloc_size * 3u) >> 1u);
-    vec = LispAllocObject(kVector, new_size);
+    vec = LispAllocObject(kVector, new_size - 1);
     vec->vector.size = new_size;
     vec->vector.fillp = v->vector.fillp;
     for (i = 0; i < v->vector.size; ++i) {
@@ -264,7 +272,4 @@ LispObject cons(LispObject car, LispObject cdr) {
   LISP_CONS_CDR(c) = POP();
   return c;
 }
-// allocate n consecutive conses
-LispObject ConsReserve(LispIndex n) {
-  return LISP_PTR_CONS(GcMalloc(n * sizeof(struct LispCons)));
-}
+

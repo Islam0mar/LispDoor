@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -101,8 +103,8 @@ struct _LispEnv {
   /* toplevel jmp for errors*/
   jmp_buf top_level;
 
-  /* symbol_tree */
-  LispObject symbol_tree;
+  /* symbols */
+  LispObject symbols;
 
   /*   /\* Current stack frame *\/ */
   /* cl_object stack_frame; */
@@ -140,9 +142,8 @@ typedef enum {
   kBitVector,
   kString,
   kCFunction, /* internal */
-  kForwarded, /* immediate forwarded flag used by GC */
   kGenSym,    /* internal only, no valid lisp object should have this type */
-  kVector
+  kVector,
 } LispType;
 
 /*
@@ -205,16 +206,10 @@ typedef enum {
 #define LISP_SYMBOL_GENSYMP(sym) (sym->symbol.stype == kSymGenSym)
 #define LISP_SYMBOL_CONSTANTP(sym) (sym->symbol.stype == kSymConstant)
 
-#define LISP_FORWARDEDP(x) ((LISP_IMMEDIATE(x) == 0) && ((x)->d.t ==  kForwarded)))
-#define LISP_SET_FORWARDED(obj_old, obj_new) \
-  obj_old->d.t = kForwarded;                 \
-  obj_old->d.o_new = obj_new;
-#define LISP_FORWARD(obj) (obj->d.o_new)
-
 #define LISP_CFunctionP(x) ((LISP_IMMEDIATE(x) == 0) && (x)->d.t == kCFunction)
 #define LISP_CFUNCTION_SPECIALP(x) ((x)->cfun.f_type == kFunctionSpecial)
 
-#define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) + kList)
+#define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) | kList)
 #define LISP_CONS_PTR(x) ((struct LispCons *)((intptr_t)(x)-kList))
 #define LISP_CONS_CAR(x) (*((LispObject *)((intptr_t)(x)-kList)))
 #define LISP_CONS_CAR_SAFE(x) (ToCons((x), "car")->car)
@@ -226,11 +221,11 @@ typedef enum {
 
 #define LISP_SET_FUNCTION(f_name, f) \
   o = LispMakeSymbol(f_name);        \
-  o->symbol.value = LispMakeCFunction(o->symbol.name, f)
+  o->symbol.value = LispMakeCFunction(f_name, f)
 #define LISP_SET_CONSTANT_FUNCTION(f_name, f) \
   o = LispMakeSymbol(f_name);                 \
   o->symbol.stype = kSymConstant;             \
-  o->symbol.value = LispMakeCFunction(o->symbol.name, f)
+  o->symbol.value = LispMakeCFunction(f_name, f)
 #define LISP_SET_VALUE(f_name, v) \
   o = LispMakeSymbol(f_name);     \
   o->symbol.stype = kSymConstant; \
@@ -241,11 +236,11 @@ typedef enum {
   o->symbol.value = v
 #define LISP_SET_SPECIAL(f_name, f) \
   o = LispMakeSymbol(f_name);       \
-  o->symbol.value = LispMakeCFunctionSpecial(o->symbol.name, f)
+  o->symbol.value = LispMakeCFunctionSpecial(f_name, f)
 #define LISP_SET_CONSTANT_SPECIAL(f_name, f) \
   o = LispMakeSymbol(f_name);                \
   o->symbol.stype = kSymConstant;            \
-  o->symbol.value = LispMakeCFunctionSpecial(o->symbol.name, f)
+  o->symbol.value = LispMakeCFunctionSpecial(f_name, f)
 
 #define LISP_TYPE_OF(o) \
   ((LispType)(LISP_IMMEDIATE(o) ? LISP_IMMEDIATE(o) : ((o)->d.t)))
@@ -257,11 +252,6 @@ typedef enum {
 struct LispSingleFloat {
   _LISP_HDR;
   float value; /*  singlefloat value  */
-#if ((UINT_MAX) != 0xffffffffu)
-  uint32_t padding; /* for 64 bit system */
-  /* as we use the content after type */
-  /* for storing forward pointer */
-#endif
 };
 
 struct LispDoubleFloat {
@@ -284,11 +274,6 @@ enum LispSymType { kSymOrdinary = 0, kSymGenSym, kSymConstant };
 struct LispSymbol {
   _LISP_HDR1(stype); /*symbol type */
   LispObject value;
-  /* h upper-bound for n = 1000 is less than 15 */
-  int8_t height; /* h for AVL tree */
-  /* AVL Tree */
-  struct LispSymbol *left;
-  struct LispSymbol *right;
   /* LispIndex binding;       /\*  index into the bindings array  *\/ */
   char name[1];
 };
@@ -312,7 +297,7 @@ struct LispVector {   /*  vector header  */
 struct LispBitVector { /*  vector header  */
   _LISP_HDR;           /*  array element type*/
   LispIndex size;      /*  dimension  */
-  uint32_t self[1];    /*  pointer to the vector  */
+  uint8_t self[1];     /*  pointer to the vector  */
 };
 
 struct LispString {     /*  vector header  */
@@ -388,9 +373,9 @@ LispObject LispMakeString(char *str);
 LispObject LispBitVectorResize(LispObject bv, LispIndex n);
 LispObject LispMakeBitVector(LispIndex n);
 LispObject LispMakeBitVectorExactSize(LispIndex n);
-LispObject LispMakeInitializedBitVector(LispIndex n, int val);
-void LispBitVectorSet(LispObject o, uint32_t n, uint32_t c);
-uint32_t LispBitVectorGet(LispObject o, uint32_t n);
+LispObject LispMakeInitializedBitVector(LispIndex n, uint8_t val);
+void LispBitVectorSet(LispObject o, uint32_t n, uint8_t c);
+uint8_t LispBitVectorGet(LispObject o, uint32_t n);
 
 /* vector */
 LispObject LispMakeVector(LispIndex size);
@@ -412,8 +397,7 @@ LispObject ConsReserve(LispIndex n);
 
 /* used for labels */
 typedef struct {
-  LispIndex n, maxsize;
-  LispObject *items;
+  LispObject items;
 } LabelTable;
 
 typedef struct _ReadState {

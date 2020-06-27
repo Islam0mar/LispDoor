@@ -26,27 +26,29 @@
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
- *    modification, are permitted provided that the following conditions are met:
+ *    modification, are permitted provided that the following conditions are
+ * met:
  *
- *        * Redistributions of source code must retain the above copyright notice,
- *          this list of conditions and the following disclaimer.
- *        * Redistributions in binary form must reproduce the above copyright notice,
- *          this list of conditions and the following disclaimer in the documentation
- *          and/or other materials provided with the distribution.
+ *        * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *        * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
  *        * Neither the author nor the names of any contributors may be used to
- *          endorse or promote products derived from this software without specific
- *          prior written permission.
+ *          endorse or promote products derived from this software without
+ * specific prior written permission.
  *
- *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- *    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- *    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- *    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *    Copyright (c) 1984, Taiichi Yuasa and Masami Hagiya.
  *    Copyright (c) 1990, Giuseppe Attardi.
@@ -323,7 +325,7 @@ void read_list(LispObject *pval, LispIndex fixup) {
     } else {
       *pval = c;
       if (fixup != NOTFOUND) {
-        read_state->exprs.items[fixup] = c;
+        read_state->exprs.items->vector.self[fixup] = c;
       }
     }
     *pc = c;
@@ -423,36 +425,36 @@ LispObject do_read_sexpr(LispIndex fixup) {
         LispError(" redefined\n");
       }
       LabelTableInsert(&read_state->labels, tokval);
-      i = read_state->exprs.n;
+      i = read_state->exprs.items->vector.fillp;
       LabelTableInsert(&read_state->exprs, LISP_UNBOUND);
       v = do_read_sexpr(i);
-      read_state->exprs.items[i] = v;
+      read_state->exprs.items->vector.self[i] = v;
       break;
     }
     case kTokBackRef: {
       /* look up backreference */
       i = LabelTableLookUp(&read_state->labels, tokval);
-      if (i == NOTFOUND || i >= read_state->exprs.n ||
-          read_state->exprs.items[i] == LISP_UNBOUND) {
+      if (i == NOTFOUND || i >= read_state->exprs.items->vector.fillp ||
+          read_state->exprs.items->vector.self[i] == LISP_UNBOUND) {
         LispPrintStr("read: error: undefined label ");
         LispPrintObject(tokval, false);
         LispError("\n");
       }
-      v = read_state->exprs.items[i];
+      v = read_state->exprs.items->vector.self[i];
       break;
     }
     default:
       break;
   }
   if (list_p) {
-    v = ConsReserve(2);
+    v = MakeCons();
     LISP_CONS_CAR(v) = head;
-    LISP_CONS_CDR(v) = LISP_PTR_CONS(LISP_CONS_PTR(v) + 1);
+    LISP_CONS_CDR(v) = MakeCons();
     LISP_CONS_CAR(LISP_CONS_CDR(v)) = LISP_CONS_CDR(LISP_CONS_CDR(v)) =
         LISP_NIL;
     PUSH(v);
     if (fixup != NOTFOUND) {
-      read_state->exprs.items[fixup] = v;
+      read_state->exprs.items->vector.self[fixup] = v;
     }
     v = do_read_sexpr(NOTFOUND);
     LISP_CONS_CAR(LISP_CONS_CDR(stack[stack_index - 1])) = v;
