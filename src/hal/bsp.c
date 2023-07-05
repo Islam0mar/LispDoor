@@ -386,7 +386,7 @@ void SystemCoreClockUpdate(void) {
 void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+  /* RCC_PeriphCLKInitTypeDef PeriphClkInit; */
 
   /**Initializes the CPU, AHB and APB busses clocks
    */
@@ -414,9 +414,9 @@ void SystemClock_Config(void) {
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
-    _Error_Handler(__FILE__, __LINE__);
-  }
+  /* if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) { */
+  /*   _Error_Handler(__FILE__, __LINE__); */
+  /* } */
 
   /**Configure the Systick interrupt time
    * 1 ms
