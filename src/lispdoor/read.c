@@ -463,11 +463,25 @@ LispObject do_read_sexpr(LispIndex fixup) {
   return v;
 }
 LispObject ReadSexpr() {
+  /* static structs */
+  /* struct LispVector8 {  /\*  vector header  *\/ */
+  /*   _LISP_HDR;          /\*  array element type*\/ */
+  /*   LispIndex size;     /\*  dimension  *\/ */
+  /*   LispIndex fillp;    /\*  fill pointer  *\/ */
+  /*                       /\*  For simple vectors, fillp is equal to dim. *\/ */
+  /*   LispObject self[8]; /\*  pointer to the vector  *\/ */
+  /* }; */
+  /* alignas(ALIGN_TYPE) struct LispVector8 vec1; */
+  /* alignas(ALIGN_TYPE) struct LispVector8 vec2; */
+
   LispObject v;
   ReadState state;
   state.prev = read_state;
-  LabelTableInit(&state.labels, 16);
-  LabelTableInit(&state.exprs, 16);
+  LabelTableInit(&state.labels, 8);
+  LabelTableInit(&state.exprs, 8);
+  /* FIXME: check labels are working correctly */
+  /* state.labels.items = (LispObject)&vec1; */
+  /* state.exprs.items = (LispObject)&vec2; */
   read_state = &state;
 
   v = do_read_sexpr(NOTFOUND);

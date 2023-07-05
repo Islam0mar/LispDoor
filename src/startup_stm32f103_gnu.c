@@ -38,8 +38,8 @@
  *
  *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  *    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  *    DEALINGS IN THE SOFTWARE.
@@ -88,7 +88,8 @@ extern int __stack_end__;
  * assembly to avoid accessing the stack, which might be corrupted by
  * the time assert_failed is called.
  */
-__attribute__((naked)) void assert_failed(char const *module, int loc);
+__attribute__((naked, noreturn)) void assert_failed(char const *module,
+                                                    int loc);
 
 /* Function prototypes -----------------------------------------------------*/
 void Default_Handler(void); /* Default empty handler */

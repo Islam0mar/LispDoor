@@ -142,12 +142,11 @@ LispObject LispMakeSymbol(char *str) {
 
   index = SymbolArrayLookUp(*symbols_vector, str);
   if (index == -1) {
-    struct LispSymbol *sym =
-        (struct LispSymbol *)LispAllocObject(kSymbol, (LispIndex)strlen(str));
-    sym->value = LISP_UNBOUND;
-    sym->stype = kSymOrdinary;
-    strcpy(sym->name, str);
-    *symbols_vector = LispVectorPush(*symbols_vector, (LispObject)sym);
+    LispObject sym = LispAllocObject(kSymbol, (LispIndex)strlen(str));
+    sym->symbol.value = LISP_UNBOUND;
+    sym->symbol.stype = kSymOrdinary;
+    strcpy(sym->symbol.name, str);
+    *symbols_vector = LispVectorPush(*symbols_vector, sym);
     SymbolArrayQuickSort((*symbols_vector)->vector.self,
                          (*symbols_vector)->vector.fillp);
     index = SymbolArrayLookUp(*symbols_vector, str);

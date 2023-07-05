@@ -62,20 +62,26 @@
 #ifndef LISPDOOR_MEMORYLAYOUT_H_INCLUDED
 #define LISPDOOR_MEMORYLAYOUT_H_INCLUDED
 
+#include <stdalign.h>
+#include <stddef.h>
+
 #include "lispdoor/objects.h"
 
 /* Lisp memory model */
-#define ALIGN_BITS (LispIndex)4
+#define ALIGN_TYPE max_align_t
+#define ALIGN_BITS (LispFixNum)alignof(ALIGN_TYPE)
 #define N_STACK 512U
-#define HEAP_SIZE (LispIndex)(6 * 1024 + 384) /* bytes */
+#define HEAP_SIZE (LispIndex)(8 * 1024 - 256) /* bytes */
+/* #define HEAP_SIZE (LispIndex)(8 * 1024 - 396) /\* bytes *\/ */
 #define TIB_SIZE \
   256U /* Should be divisable by 2 (see HAL_UART_RxCpltCallback)*/
 #define SCRATCH_PAD_SIZE 128U
+#define HEAP_MAX_SIZE (LispIndex)(HEAP_SIZE / sizeof(LispSmallestStruct))
 
 /* 1. memory pool */
 extern Byte *curr_heap;
 extern Byte *heap_free;
-extern Byte heap[HEAP_SIZE];
+extern alignas(ALIGN_TYPE) Byte heap[HEAP_SIZE];
 /* 2. stack */
 extern Byte *stack_bottom;
 extern LispObject stack[N_STACK];

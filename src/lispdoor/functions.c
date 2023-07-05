@@ -59,6 +59,8 @@
  *    License as published by the Free Software Foundation; either
  *    version 2 of the License, or (at your option) any later version.
  */
+
+#include "hal/qassert.h"
 #include "lispdoor/eval.h"
 #include "lispdoor/gc.h"
 #include "lispdoor/memorylayout.h"
@@ -67,6 +69,8 @@
 #include "lispdoor/read.h"
 #include "lispdoor/symboltree.h"
 #include "lispdoor/utils.h"
+
+Q_DEFINE_THIS_MODULE("functions")
 
 /* Builtin functions */
 LispObject LdLabel(LispNArg narg) {
@@ -116,6 +120,7 @@ LispObject LdMacro(LispNArg narg) {
   return ans;
 }
 LispObject LdQuote(LispNArg narg) {
+  (void)narg;
   LispObject ans, v;
   v = POP();
   if (!LISP_ConsP(v)) {
@@ -126,6 +131,7 @@ LispObject LdQuote(LispNArg narg) {
 }
 LispObject LdIf(LispNArg narg) {
   /* (if (test-clause) (action1) (action2)) */
+  (void)narg;
   LispObject ans, cond;
   PUSH(LispEnv()->frame);
   cond = LISP_CONS_CAR_SAFE(stack[stack_index - 2]);
@@ -150,6 +156,7 @@ LispObject LdCond(LispNArg narg) {
   /*    (test2    action2) */
   /*    ... */
   /*    (testn   actionn))*/
+  (void)narg;
   LispObject ans = LISP_NIL, *pv, v, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_index - 1];
@@ -176,6 +183,7 @@ LispObject LdCond(LispNArg narg) {
   return ans;
 }
 LispObject LdAnd(LispNArg narg) {
+  (void)narg;
   LispObject ans = LISP_T, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_index - 1];
@@ -194,6 +202,7 @@ LispObject LdAnd(LispNArg narg) {
   return ans;
 }
 LispObject LdOr(LispNArg narg) {
+  (void)narg;
   LispObject ans = LISP_NIL, *pv, *frame;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_index - 1];
@@ -213,6 +222,7 @@ LispObject LdOr(LispNArg narg) {
 }
 LispObject LdWhile(LispNArg narg) {
   /* (while test body ...) */
+  (void)narg;
   LispObject *tmp, *pv, *frame, *body, *cond;
   tmp = &stack[stack_index - 1];
   PUSH(LispEnv()->frame);
@@ -236,6 +246,7 @@ LispObject LdWhile(LispNArg narg) {
 }
 LispObject LdProgn(LispNArg narg) {
   /* return last arg */
+  (void)narg;
   LispObject ans = LISP_NIL, *frame, *body;
   PUSH(LispEnv()->frame);
   frame = &stack[stack_index - 1];
@@ -552,18 +563,41 @@ LispObject LdPrintSymbols(LispNArg narg) {
   LispPrintByte('\n');
   return LISP_T;
 }
+LispObject LdNumberOfObjects(LispNArg narg) {
+  ArgCount("print-symbols", narg, 0);
+  LispPrintStr("gc: found ");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        *LispNumberOfObjectsAllocated(), 10));
+  LispPrintStr(" live objects occupy ");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
+                        (uint32_t)(curr_heap - heap), 10));
+  LispPrintStr("/");
+  LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE, HEAP_SIZE, 10));
+  LispPrintStr(" bytes.\n");
+  return LISP_T;
+}
 
 /* initialization */
 void LispInit(void) {
   stack_index = 0;
   curr_heap = heap;
-  cons_flags =
-      LispMakeInitializedBitVector(HEAP_SIZE / sizeof(LispSmallestStruct), 0);
-  gc_mark_bit =
-      LispMakeInitializedBitVector(HEAP_SIZE / sizeof(LispSmallestStruct), 0);
-  gc_cons =
-      LispMakeInitializedBitVector(HEAP_SIZE / sizeof(LispSmallestStruct), 0);
-  gc_offset = LispMakeVector(HEAP_SIZE / sizeof(LispSmallestStruct));
+
+  Q_ASSERT(IS_ALIGNED(heap, ALIGN_BITS));
+
+  cons_flags->bit_vector.t = kBitVector;
+  cons_flags->bit_vector.size = HEAP_MAX_SIZE;
+
+  gc_mark_bit->bit_vector.t = kBitVector;
+  gc_mark_bit->bit_vector.size = HEAP_MAX_SIZE;
+  gc_cons->bit_vector.t = kBitVector;
+  gc_cons->bit_vector.size = HEAP_MAX_SIZE;
+  gc_offset->vector.t = kVector;
+  gc_offset->vector.fillp = HEAP_MAX_SIZE;
+  gc_offset->vector.size = HEAP_MAX_SIZE;
+
+  memset(cons_flags->bit_vector.self, 0, cons_flags->bit_vector.size);
+  memset(gc_mark_bit->bit_vector.self, 0, gc_mark_bit->bit_vector.size);
+  memset(gc_cons->bit_vector.self, 0, gc_cons->bit_vector.size);
 
   LispEnv()->symbols = LispMakeVector(3);
   LispEnv()->frame = LISP_NIL;
@@ -620,4 +654,5 @@ void LispInit(void) {
   LISP_SET_FUNCTION("gensym", LdMakeGenSym);
   LISP_SET_FUNCTION("symbol-name", LdSymbolName);
   LISP_SET_FUNCTION("print-symbols", LdPrintSymbols);
+  LISP_SET_FUNCTION("objects", LdNumberOfObjects);
 }

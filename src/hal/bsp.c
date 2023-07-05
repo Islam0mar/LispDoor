@@ -38,8 +38,8 @@
  *
  *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  *    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  *    DEALINGS IN THE SOFTWARE.
@@ -77,8 +77,9 @@
 
 #include "hal/bsp.h"
 
+#include "hal/qassert.h"
 #include "lispdoor/memorylayout.h"
-#include "stm32f1xx_hal.h"
+#include "stm32f1xx_hal.h" /* TODO: USE CMSIS */
 
 #define BootRAM (int)0xF108F85F
 
@@ -128,7 +129,8 @@ extern int __stack_end__;
  * assembly to avoid accessing the stack, which might be corrupted by
  * the time assert_failed is called.
  */
-__attribute__((naked)) void assert_failed(char const *module, int loc);
+/* __attribute__((naked, noreturn)) */ Q_NORETURN assert_failed(
+    char const *module, int loc);
 
 /* Function prototypes -----------------------------------------------------*/
 void Default_Handler(void); /* Default empty handler */
@@ -533,7 +535,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  * @param  None
  * @retval None
  */
+/* void _Error_Handler(char *file, int line) { */
 void _Error_Handler(char *file, int line) {
+  (void)file;
+  (void)line;
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state
    */
@@ -551,11 +556,15 @@ void _Error_Handler(char *file, int line) {
  *
  * @return     return type
  */
-__attribute__((naked)) void assert_failed(char const *file, int line) {
-  /* TBD: damage control */
-  /* NVIC_SystemReset(); /\* reset the system *\/ */
-  while (1) {
+Q_NORETURN assert_failed(char const *file, int line) { Q_onAssert(file, line); }
+
+Q_NORETURN Q_onAssert(char const *const module, int_t const id) {
+  (void)module;
+  (void)id;
+  while (true) {
   }
+  /* TBD: damage control */
+  NVIC_SystemReset(); /* reset the system */
 }
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF

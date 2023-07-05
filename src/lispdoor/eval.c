@@ -85,7 +85,7 @@ LispObject LispApply(LispObject fun, LispObject arg_list) {
       PUSH(v);
       v = LISP_CONS_CDR(v);
     }
-    nargs = stack_index - saved_stack_index - 4;
+    nargs = (LispIndex)(stack_index - saved_stack_index - 4);
     /* call function */
     ans = (fun->cfun.f)(nargs);
   } else if (LISP_ConsP(fun) && LISP_SymbolP(LISP_CONS_CAR(fun)) &&

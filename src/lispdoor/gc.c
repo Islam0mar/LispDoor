@@ -61,10 +61,13 @@
  */
 #include "lispdoor/gc.h"
 
+#include "hal/qassert.h"
 #include "lispdoor/memorylayout.h"
 #include "lispdoor/print.h"
 #include "lispdoor/symboltree.h"
 #include "lispdoor/utils.h"
+
+Q_DEFINE_THIS_MODULE("gc")
 
 #define OBJ_INDEX(c)                                            \
   ((LispSmallestStruct *)((LispFixNum)c & ~((LispFixNum)0x3)) - \
@@ -86,7 +89,7 @@ LispIndex *LispNumberOfObjectsAllocated() {
 void *GcMalloc(LispIndex num_of_bytes) {
   void *ptr;
   if ((LispFixNum)curr_heap + num_of_bytes > (LispFixNum)heap + HEAP_SIZE) {
-    GC(0);
+    GC();
   }
   if ((LispFixNum)curr_heap + num_of_bytes > (LispFixNum)heap + HEAP_SIZE) {
     LispError("no space to allocate new object.");
@@ -95,6 +98,7 @@ void *GcMalloc(LispIndex num_of_bytes) {
   curr_heap = (Byte *)((LispFixNum)curr_heap + num_of_bytes);
   curr_heap =
       (Byte *)(((LispFixNum)curr_heap + (ALIGN_BITS - 1)) & -ALIGN_BITS);
+  Q_ASSERT(IS_ALIGNED(curr_heap, ALIGN_BITS));
   ++*LispNumberOfObjectsAllocated(); /* better readability */
   return ptr;
 }
@@ -106,7 +110,7 @@ LispObject GcNextHeapObject(LispObject obj) {
   LispType t = LISP_TYPE_OF(obj);
   switch (t) {
     case kList:
-      obj = (LispObject)LISP_CONS_PTR(obj);
+      obj = LISP_CONS_OBJ_PTR(obj);
       l = sizeof(struct LispCons);
       break;
     case kSingleFloat:
@@ -122,7 +126,8 @@ LispObject GcNextHeapObject(LispObject obj) {
       if (LISP_GenSymP(obj)) {
         l = sizeof(struct LispGenSym);
       } else {
-        l = sizeof(struct LispSymbol) + strlen(obj->symbol.name) * sizeof(char);
+        l = sizeof(struct LispSymbol) +
+            (LispIndex)strlen(obj->symbol.name) * sizeof(char);
       }
       break;
     case kCFunction:
@@ -137,7 +142,7 @@ LispObject GcNextHeapObject(LispObject obj) {
       break;
     case kVector:
       l = sizeof(struct LispVector) +
-          (sizeof(LispObject) * (obj->vector.size - 1));
+          (LispIndex)(sizeof(LispObject) * (obj->vector.size - 1));
       break;
     default:
       LispError("error: Unkown object located at the heap!\n");
@@ -165,6 +170,7 @@ void GcMarkObject(LispObject o) {
       }
       case kSymbol: {
         MARK_OBJ(o);
+        /* TODO: ignore unbound symbols */
         if (!LISP_SYMBOL_GENSYMP(o)) {
           GcMarkObject(o->symbol.value);
         }
@@ -228,10 +234,10 @@ void GcMarkLiveObjects() {
   GcMarkObject(print_conses.items);
 
   /* 5. cons_flag */
-  GcMarkObject(cons_flags);
-  GcMarkObject(gc_cons);
-  GcMarkObject(gc_offset);
-  GcMarkObject(gc_mark_bit);
+  /* GcMarkObject(cons_flags); */
+  /* GcMarkObject(gc_cons); */
+  /* GcMarkObject(gc_offset); */
+  /* GcMarkObject(gc_mark_bit); */
 }
 
 LispObject LispAllocObject(LispType t, LispIndex extra_size) {
@@ -274,8 +280,8 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
       obj = (LispObject)GcMalloc(sizeof(struct LispGenSym));
       break;
     case kVector:
-      obj = (LispObject)GcMalloc(sizeof(struct LispVector) +
-                                 sizeof(LispObject) * extra_size);
+      obj = (LispObject)GcMalloc((LispIndex)(sizeof(struct LispVector) +
+                                             sizeof(LispObject) * extra_size));
       break;
     default:
       LispError("error: wrong object type, alloc botch.\n");
@@ -288,7 +294,7 @@ LispObject LispAllocObject(LispType t, LispIndex extra_size) {
 // ------------------------------------------------------------------
 void GcComputeLocations() {
   LispIndex offset = 0;
-  LispObject curr = (LispObject)heap, prev;
+  LispObject curr = (LispObject)(void *)heap, prev;
   while ((uintptr_t)curr + 1 < (uintptr_t)curr_heap) {
     if (MARKED_P(curr)) {
       gc_offset->vector.self[OBJ_INDEX(curr)] = LISP_MAKE_FIXNUM(offset);
@@ -298,7 +304,8 @@ void GcComputeLocations() {
       prev = curr;
       curr = GcNextHeapObject(curr);
       /* Avoid cons immediate type bit */
-      offset += ((LispFixNum)curr & ~0x3) - ((LispFixNum)prev & ~0x3);
+      offset +=
+          (LispIndex)(((LispFixNum)curr & ~0x3) - ((LispFixNum)prev & ~0x3));
     }
   }
   heap_free = (Byte *)((LispFixNum)curr_heap - offset);
@@ -410,7 +417,7 @@ LispObject GcForwardObject(LispObject o) {
 
 void GcUpdateObjectsRelocate() {
   LispIndex i = 0;
-  LispObject curr = (LispObject)heap, next;
+  LispObject curr = (LispObject)(void *)heap, next;
   ReadState *rs;
   while ((uintptr_t)curr + 1 < (uintptr_t)curr_heap) {
     next = GcNextHeapObject(curr);
@@ -419,8 +426,8 @@ void GcUpdateObjectsRelocate() {
       if (CONS_P(curr)) {
         UNSET_CONS(curr);
         SET_CONS(new_loc);
-        new_loc = (LispObject)LISP_CONS_PTR(new_loc);
-        curr = (LispObject)LISP_CONS_PTR(curr);
+        new_loc = LISP_CONS_OBJ_PTR(new_loc);
+        curr = LISP_CONS_OBJ_PTR(curr);
       }
       memmove(new_loc, curr,
               (size_t)(((LispFixNum)next & ~0x3) - (LispFixNum)curr));
@@ -448,10 +455,10 @@ void GcUpdateObjectsRelocate() {
   print_conses.items = GcForwardChildObject(print_conses.items);
 
   /* 5. cons_flag */
-  cons_flags = GcForwardChildObject(cons_flags);
-  /* GcMarkObject(gc_cons); */
-  /* GcMarkObject(gc_offset); */
-  /* GcMarkObject(gc_mark_bit); */
+  /* cons_flags = GcForwardChildObject(cons_flags); */
+  /* gc_cons = GcForwardChildObject(gc_cons); */
+  /* gc_offset = GcForwardChildObject(gc_offset); */
+  /* gc_mark_bit = GcForwardChildObject(gc_mark_bit); */
 }
 
 void GcCompact() {
@@ -462,7 +469,7 @@ void GcCompact() {
 void GC() {
   memset(gc_mark_bit->bit_vector.self, 0, gc_mark_bit->bit_vector.size);
   memset(gc_offset->vector.self, 0,
-         sizeof(LispObject) * gc_offset->vector.size);
+         sizeof(LispObject) * gc_offset->vector.fillp);
   GcMarkLiveObjects();
   GcCompact();
   curr_heap = heap_free;

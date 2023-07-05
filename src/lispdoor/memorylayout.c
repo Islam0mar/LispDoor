@@ -62,11 +62,30 @@
 
 #include "lispdoor/memorylayout.h"
 
+/* static structs */
+struct LispBitVectorGC {         /*  vector header  */
+  alignas(ALIGN_TYPE) _LISP_HDR; /*  array element type*/
+  LispIndex size;                /*  dimension  */
+  uint8_t self[HEAP_MAX_SIZE];   /*  pointer to the vector */
+};
+struct LispVectorGC {            /*  vector header  */
+  alignas(ALIGN_TYPE) _LISP_HDR; /*  array element type*/
+  LispIndex size;                /*  dimension  */
+  LispIndex fillp;               /*  fill pointer  */
+  /*  For simple vectors, fillp is equal to dim. */
+  LispObject self[HEAP_MAX_SIZE]; /*  pointer to the vector */
+};
+
+struct LispBitVectorGC cons_flags_bit_vector;
+struct LispBitVectorGC gc_mark_bit_vector;
+struct LispBitVectorGC gc_cons_bit_vector;
+struct LispVectorGC gc_offset_vector;
+
 /* Lisp memory model */
 /* 1. memory pool */
 Byte *curr_heap;
 Byte *heap_free;
-Byte heap[HEAP_SIZE];
+alignas(ALIGN_TYPE) Byte heap[HEAP_SIZE];
 /* 2. stack */
 Byte *stack_bottom;
 LispObject stack[N_STACK];
@@ -82,11 +101,11 @@ Byte lisp_number_base = 10;
 /* 6. fractional part precision to print */
 Byte lisp_fractional_precision = 10;
 /* 7. used for self circular cons*/
-LispObject cons_flags;
+LispObject cons_flags = (LispObject)&cons_flags_bit_vector;
 LabelTable print_conses;
 /* 8. used for reading labels */
 ReadState *read_state = NULL;
 /* 9. mark-compacting gc */
-LispObject gc_mark_bit;
-LispObject gc_offset;
-LispObject gc_cons;
+LispObject gc_mark_bit = (LispObject)&gc_mark_bit_vector;
+LispObject gc_offset = (LispObject)&gc_offset_vector;
+LispObject gc_cons = (LispObject)&gc_cons_bit_vector;

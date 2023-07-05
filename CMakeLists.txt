@@ -103,12 +103,15 @@ target_include_directories(${MY_TARGET} PUBLIC
 target_link_options(${MY_TARGET} PUBLIC
   $<$<COMPILE_LANGUAGE:ASM>:${ASM_LINKER_FLAGS}>
   $<$<COMPILE_LANGUAGE:C>:${C_LINKER_FLAGS}>
+  $<$<COMPILE_LANGUAGE:C>:-std=c17>
   )
 target_compile_options(${MY_TARGET} PUBLIC
   $<$<COMPILE_LANGUAGE:ASM>:-mimplicit-it=always> 
   $<$<COMPILE_LANGUAGE:ASM>:-mthumb> 
   $<$<COMPILE_LANGUAGE:ASM>:-mcpu=cortex-m3> 
-  $<$<COMPILE_LANGUAGE:C>:-std=c99>
+  $<$<COMPILE_LANGUAGE:ASM>:-fdiagnostics-color=always>
+  $<$<COMPILE_LANGUAGE:C>:-std=c17>
+  $<$<COMPILE_LANGUAGE:C>:-fdiagnostics-color=always>
   $<$<COMPILE_LANGUAGE:C>:-mthumb>
   $<$<COMPILE_LANGUAGE:C>:-save-temps>
   $<$<COMPILE_LANGUAGE:C>:-mcpu=cortex-m3>

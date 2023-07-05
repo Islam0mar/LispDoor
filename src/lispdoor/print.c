@@ -69,7 +69,7 @@
 
 #define CONS_INDEX(c)                         \
   (((LispSmallestStruct *)LISP_CONS_PTR(c)) - \
-   ((LispSmallestStruct *)heap))
+   ((LispSmallestStruct *)(void *)heap))
 
 #define MARKED_P(c) LispBitVectorGet(cons_flags, (uint32_t)CONS_INDEX(c))
 #define MARK_CONS(c) LispBitVectorSet(cons_flags, (uint32_t)CONS_INDEX(c), 1)
@@ -164,13 +164,13 @@ static void DoPrint(LispObject o, bool princ) {
     switch (LISP_TYPE_OF(o)) {
       case kFixNum: {
         LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
-                              LISP_FIXNUM(o), lisp_number_base));
+                              (uint32_t)LISP_FIXNUM(o), lisp_number_base));
         break;
       }
       case kCharacter: {
         LispPrintStr("#\\");
         LispPrintStr(Uint2Str((char *)scratch_pad, SCRATCH_PAD_SIZE,
-                              LISP_CHAR_CODE(o), lisp_number_base));
+                              (uint32_t)LISP_CHAR_CODE(o), lisp_number_base));
         break;
       }
       case kSingleFloat: {

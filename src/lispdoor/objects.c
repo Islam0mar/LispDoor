@@ -199,16 +199,14 @@ LispObject LispMakeVector(LispIndex size) {
 LispObject LispVectorResize(LispObject v, LispIndex alloc_size) {
   LispObject vec;
   if (alloc_size > ToVector(v, "vector-resize")->size) {
-    LispIndex i = 0;
     LispIndex new_size = (alloc_size > v->vector.size * 2u)
                              ? alloc_size
-                             : ((alloc_size * 3u) >> 1u);
+                             : (LispIndex)((alloc_size * 3u) >> 1u);
     vec = LispAllocObject(kVector, new_size - 1);
     vec->vector.size = new_size;
     vec->vector.fillp = v->vector.fillp;
-    for (i = 0; i < v->vector.size; ++i) {
-      vec->vector.self[i] = v->vector.self[i];
-    }
+    memcpy(vec->vector.self, v->vector.self,
+           sizeof(LispObject) * v->vector.fillp);
   } else {
     vec = v;
   }
@@ -272,4 +270,3 @@ LispObject cons(LispObject car, LispObject cdr) {
   LISP_CONS_CDR(c) = POP();
   return c;
 }
-

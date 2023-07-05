@@ -69,6 +69,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define IS_ALIGNED(x, a) (((intptr_t)(void *)(x) & ((intptr_t)(a)-1)) == 0)
+
 /*
         Definition of the type of LISP objects.
 */
@@ -211,6 +213,7 @@ typedef enum {
 
 #define LISP_PTR_CONS(x) (LispObject)((intptr_t)(x) | kList)
 #define LISP_CONS_PTR(x) ((struct LispCons *)((intptr_t)(x)-kList))
+#define LISP_CONS_OBJ_PTR(x) ((LispObject)((intptr_t)(x)-kList))
 #define LISP_CONS_CAR(x) (*((LispObject *)((intptr_t)(x)-kList)))
 #define LISP_CONS_CAR_SAFE(x) (ToCons((x), "car")->car)
 #define LISP_CONS_CDR(x) \
